@@ -1,0 +1,14 @@
+## Intellij
+.idea
+.idea/hotswap_agent.xml
+/out/
+
+## Gradle
+.gradle
+/build/
+/gradle/
+gradlew*
+
+gradle-app.setting
+.gradletasknamecache
+gradle/wrapper/gradle-wrapper.properties
