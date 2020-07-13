@@ -108,11 +108,11 @@ public class PlayerInfoPanel extends JPanel implements RefreshedVersionsListener
         if (version == null) {
             this.versionText.setText("Loading versions...");
         } else if (version.isUpToDate()) {
-            this.versionText.setText("Ready to play Minecraft " + version.getLatestVersion().getId());
+            this.versionText.setText("Play Minecraft " + version.getLatestVersion().getId());
         } else if (version.isInstalled()) {
-            this.versionText.setText("Ready to update & play Minecraft " + version.getLatestVersion().getId());
+            this.versionText.setText("Update Minecraft " + version.getLatestVersion().getId());
         } else if (version.isOnRemote()) {
-            this.versionText.setText("Ready to download & play Minecraft " + version.getLatestVersion().getId());
+            this.versionText.setText("Download Minecraft " + version.getLatestVersion().getId());
         }
         this.switchUserButton.setEnabled(true);
     }
