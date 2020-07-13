@@ -33,13 +33,19 @@ import net.minecraft.launcher.profile.ProfileManager;
 import net.minecraft.launcher.ui.popups.login.AuthErrorForm;
 import net.minecraft.launcher.ui.popups.login.ExistingUserListForm;
 import net.minecraft.launcher.ui.popups.login.LogInForm;
+import net.minecraft.launcher.ui.popups.login.LogInFormMacrosoft;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class LogInPopup extends JPanel implements ActionListener {
+	
+	private static final Logger LOGGER = LogManager.getLogger();
     private final Launcher minecraftLauncher;
     private final Callback callback;
     private final AuthErrorForm errorForm;
     private final ExistingUserListForm existingUserListForm;
-    private final LogInForm logInForm;
+    private final LogInFormMacrosoft logInForm;
+    //private final LogInForm logInForm;
     private final JButton loginButton = new JButton("Log In");
     private final JButton registerButton = new JButton("Register");
     private final JProgressBar progressBar = new JProgressBar();
@@ -50,7 +56,8 @@ public class LogInPopup extends JPanel implements ActionListener {
         this.callback = callback;
         this.errorForm = new AuthErrorForm(this);
         this.existingUserListForm = new ExistingUserListForm(this);
-        this.logInForm = new LogInForm(this);
+        this.logInForm = new LogInFormMacrosoft(this);
+        //this.logInForm = new LogInForm(this);
         this.createInterface();
         this.loginButton.addActionListener(this);
         this.registerButton.addActionListener(this);
@@ -81,7 +88,7 @@ public class LogInPopup extends JPanel implements ActionListener {
         this.add(Box.createVerticalStrut(15));
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new GridLayout(1, 2, 10, 0));
-        buttonPanel.add(this.registerButton);
+        //buttonPanel.add(this.registerButton);
         buttonPanel.add(this.loginButton);
         this.add(buttonPanel);
         this.progressBar.setIndeterminate(true);
@@ -120,7 +127,8 @@ public class LogInPopup extends JPanel implements ActionListener {
         }
     }
 
-    public LogInForm getLogInForm() {
+    public LogInFormMacrosoft getLogInForm() {
+    //public LogInForm getLogInForm() {
         return this.logInForm;
     }
 
