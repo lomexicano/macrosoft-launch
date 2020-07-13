@@ -334,7 +334,7 @@ implements MinecraftUserInterface {
                 String name = auth.getSelectedProfile() == null ? "Demo" : auth.getSelectedProfile().getName();
                 SwingUserInterface.this.launcherPanel.getTabPanel().removeTab("Game Output (" + name + ")");
                 SwingUserInterface.this.launcherPanel.getTabPanel().addTab("Game Output (" + name + ")", tab);
-                SwingUserInterface.this.launcherPanel.getTabPanel().setSelectedComponent(tab);
+                //SwingUserInterface.this.launcherPanel.getTabPanel().setSelectedComponent(tab);
             }
         });
         return (GameOutputLogProcessor)Futures.getUnchecked(future);

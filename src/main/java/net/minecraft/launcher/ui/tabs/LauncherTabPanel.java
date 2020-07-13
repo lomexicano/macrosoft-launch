@@ -24,9 +24,9 @@ extends JTabbedPane {
     }
 
     protected void createInterface() {
-        this.addTab("Update Notes", this.blog);
+        this.addTab("News", this.blog);
         this.addTab("Launcher Log", this.console);
-        this.addTab("Profile Editor", new ProfileListTab(this.minecraftLauncher));
+        //this.addTab("Profile Editor", new ProfileListTab(this.minecraftLauncher));
     }
 
     public Launcher getMinecraftLauncher() {
