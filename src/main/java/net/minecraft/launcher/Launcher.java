@@ -101,7 +101,8 @@ public class Launcher {
     }
 
     public Launcher(JFrame frame, File workingDirectory, Proxy proxy, PasswordAuthentication proxyAuth, String[] args, Integer bootstrapVersion) {
-        INSTANCE = this;
+        LOGGER.info("Macrosoft was here");
+    	INSTANCE = this;
         this.setupErrorHandling();
         this.bootstrapVersion = bootstrapVersion;
         this.userInterface = this.selectUserInterface(frame);
@@ -222,7 +223,7 @@ public class Launcher {
                         }
                     }
                 }
-                Launcher.this.ensureLoggedIn();
+                Launcher.this.ensureLoggedIn();//THE PROMPT IS FROM HERE
             }
         });
     }

@@ -11,3 +11,18 @@ This launcher is made to bring back the old Java launcher fully working and upda
  + Full support for all Minecraft versions (all the way back to the Alpha versions)
  + An updated blog (The old MCUpdate blog has been discontinued, so we made our own on the [MCUpdate repository](https://github.com/mclaunch/mcupdate))
  + A good look
+ 
+## Macrosoft updates
+
+1. To change the prompt that asks for username and password, we change the behavior of the following part:
+
+Main -> 
+startLauncher() ->
+new Launcher() ->
+refreshVersionsAndProfiles() ->
+ensureLoggedIn() ->
+	(MinecraftUserInterface) getUserInterface()
+		holds from Launcher constructor
+			selectUserInterface(frame)
+				-> SwingUserInterface
+		-> showLoginPrompt()

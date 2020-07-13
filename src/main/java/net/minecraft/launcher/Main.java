@@ -57,7 +57,8 @@ public class Main {
         LOGGER.debug("About to create JFrame.");
         Proxy finalProxy = proxy;
         JFrame frame = new JFrame();
-        frame.setTitle("Minecraft Launcher " + LauncherConstants.getVersionName() + LauncherConstants.PROPERTIES.getEnvironment().getTitle());
+        //frame.setTitle("Minecraft Launcher " + LauncherConstants.getVersionName() + LauncherConstants.PROPERTIES.getEnvironment().getTitle());
+        frame.setTitle("Macrosoft Launcher " + LauncherConstants.getVersionName());
         frame.setPreferredSize(new Dimension(900, 580));
         try {
             InputStream in = Launcher.class.getResourceAsStream("/favicon.png");
@@ -85,25 +86,30 @@ public class Main {
 
     public static File getWorkingDirectory() {
         File workingDirectory;
+        /*
+         * Here Macrosoft Federal changes the working directory (28/4/2020, 19h44)
+         * 
+         */
         //String userHome = System.getProperty("user.home", ".");
         String userHome = System.getProperty("user.dir", ".");
+
         switch (OperatingSystem.getCurrentPlatform()) {
             case LINUX: {
-                workingDirectory = new File(userHome, ".mclaunch/");
+                workingDirectory = new File(userHome, ".macrosoft/");
                 break;
             }
             case WINDOWS: {
-                String applicationData = System.getenv("APPDATA");
-                String folder = applicationData != null ? applicationData : userHome;
-                workingDirectory = new File(folder, ".mclaunch/");
+                //String applicationData = System.getenv("APPDATA");
+                //String folder = applicationData != null ? applicationData : userHome;
+                workingDirectory = new File(userHome, ".macrosoft/");
                 break;
             }
             case OSX: {
-                workingDirectory = new File(userHome, "Library/Application Support/mclaunch");
+                workingDirectory = new File(userHome, "Library/Application Support/macrosoft");
                 break;
             }
             default: {
-                workingDirectory = new File(userHome, "mclaunch/");
+                workingDirectory = new File(userHome, "macrosoft/");
             }
         }
         return workingDirectory;
