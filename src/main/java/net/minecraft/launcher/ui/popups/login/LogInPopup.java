@@ -80,9 +80,9 @@ public class LogInPopup extends JPanel implements ActionListener {
         catch (IOException e) {
             e.printStackTrace();
         }
-        if (!this.minecraftLauncher.getProfileManager().getAuthDatabase().getKnownNames().isEmpty()) {
+        /*if (!this.minecraftLauncher.getProfileManager().getAuthDatabase().getKnownNames().isEmpty()) {
             this.add(this.existingUserListForm);
-        }
+        }*/
         this.add(this.errorForm);
         this.add(this.logInForm);
         this.add(Box.createVerticalStrut(15));

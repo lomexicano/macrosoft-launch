@@ -35,7 +35,7 @@ extends BaseUserAuthentication {
 
 	@Override
 	public boolean canPlayOnline() {
-		return this.isLoggedIn() && this.getSelectedProfile() != null;
+		return true;
 	}
 
 	@Override

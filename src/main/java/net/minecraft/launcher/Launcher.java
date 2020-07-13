@@ -246,6 +246,8 @@ public class Launcher {
 
     public void ensureLoggedIn() {
         UserAuthentication auth = this.profileManager.getAuthDatabase().getByUUID(this.profileManager.getSelectedUser());
+        //System.out.println(auth);
+        //System.out.println(this.profileManager.getSelectedUser());
         if (auth == null) {
             this.getUserInterface().showLoginPrompt();
         } else if (!auth.isLoggedIn()) {
@@ -267,7 +269,7 @@ public class Launcher {
             } else {
                 this.getUserInterface().showLoginPrompt();
             }
-        } else if (!auth.canPlayOnline()) {
+        } /*else if (!auth.canPlayOnline()) {
             try {
                 LOGGER.info("Refreshing auth...");
                 auth.logIn();
@@ -286,7 +288,7 @@ public class Launcher {
             catch (AuthenticationException e) {
                 LOGGER.error("Exception whilst logging into profile", (Throwable)e);
             }
-        }
+        }*/
     }
 
     public UUID getClientToken() {
