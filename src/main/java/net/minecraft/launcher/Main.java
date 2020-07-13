@@ -58,7 +58,7 @@ public class Main {
         Proxy finalProxy = proxy;
         JFrame frame = new JFrame();
         //frame.setTitle("Minecraft Launcher " + LauncherConstants.getVersionName() + LauncherConstants.PROPERTIES.getEnvironment().getTitle());
-        frame.setTitle("Macrosoft Launcher " + LauncherConstants.getVersionName());
+        frame.setTitle("Macrosoft Launcher");
         frame.setPreferredSize(new Dimension(900, 580));
         try {
             InputStream in = Launcher.class.getResourceAsStream("/favicon.png");

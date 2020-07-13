@@ -120,64 +120,70 @@ public class LogInFormMacrosoft extends JPanel implements ActionListener {
                 }
             });
         } else {
-            this.popup.setCanLogIn(false);
-            this.authentication.logOut();
-            this.authentication.setUsername(this.usernameField.getText());
-            this.authentication.setPassword(String.valueOf(this.passwordField.getPassword()));
-            final int passwordLength = this.passwordField.getPassword().length;
-            this.passwordField.setText("");
-            this.popup.getMinecraftLauncher().getLauncher().getVersionManager().getExecutorService().execute(new Runnable(){
-
-                @Override
-                public void run() {
-                    try {
-                        LogInFormMacrosoft.this.authentication.logIn();
-                        AuthenticationDatabase authDatabase = LogInFormMacrosoft.this.popup.getMinecraftLauncher().getProfileManager().getAuthDatabase();
-                        if (LogInFormMacrosoft.this.authentication.getSelectedProfile() == null) {
-                            if (ArrayUtils.isNotEmpty(LogInFormMacrosoft.this.authentication.getAvailableProfiles())) {
-                                for (GameProfile profile : LogInFormMacrosoft.this.authentication.getAvailableProfiles()) {
-                                    LogInFormMacrosoft.this.userDropdown.addItem(profile.getName());
-                                }
-                                SwingUtilities.invokeLater(new Runnable(){
-
-                                    @Override
-                                    public void run() {
-                                        LogInFormMacrosoft.this.usernameField.setEditable(false);
-                                        LogInFormMacrosoft.this.passwordField.setEditable(false);
-                                        LogInFormMacrosoft.this.userDropdownPanel.setVisible(true);
-                                        LogInFormMacrosoft.this.popup.repack();
-                                        LogInFormMacrosoft.this.popup.setCanLogIn(true);
-                                        LogInFormMacrosoft.this.passwordField.setText(StringUtils.repeat('*', passwordLength));
-                                    }
-                                });
-                            } else {
-                                String uuid = "demo-" + LogInFormMacrosoft.this.authentication.getUserID();
-                                authDatabase.register(uuid, LogInFormMacrosoft.this.authentication);
-                                LogInFormMacrosoft.this.popup.setLoggedIn(uuid);
-                            }
-                        } else {
-                            authDatabase.register(UUIDTypeAdapter.fromUUID(LogInFormMacrosoft.this.authentication.getSelectedProfile().getId()), LogInFormMacrosoft.this.authentication);
-                            LogInFormMacrosoft.this.popup.setLoggedIn(UUIDTypeAdapter.fromUUID(LogInFormMacrosoft.this.authentication.getSelectedProfile().getId()));
-                        }
-                    }
-                    catch (UserMigratedException ex) {
-                        LOGGER.error("Couldn't log in", (Throwable)ex);
-                        LogInFormMacrosoft.this.popup.getErrorForm().displayError(ex, "Sorry, but we can't log you in with your username.", "You have migrated your account, please use your email address.");
-                        LogInFormMacrosoft.this.popup.setCanLogIn(true);
-                    }
-                    catch (InvalidCredentialsException ex) {
-                        LOGGER.error("Couldn't log in", (Throwable)ex);
-                        LogInFormMacrosoft.this.popup.getErrorForm().displayError(ex, "Sorry, but your username or password is incorrect!", "Please try again. If you need help, try the 'Forgot Password' link.");
-                        LogInFormMacrosoft.this.popup.setCanLogIn(true);
-                    }
-                    catch (AuthenticationException ex) {
-                        LOGGER.error("Couldn't log in", (Throwable)ex);
-                        LogInFormMacrosoft.this.popup.getErrorForm().displayError(ex, "Sorry, but we couldn't connect to our servers.", "Please make sure that you are online and that Minecraft is not blocked.");
-                        LogInFormMacrosoft.this.popup.setCanLogIn(true);
-                    }
-                }
-
-            });
+        	
+        	if(this.usernameField.getText().isEmpty()) {
+        		this.popup.getErrorForm().displayError(new InvalidCredentialsException("empty nick"), "Nick cannot be empty!");
+        	} else {
+        		this.popup.setCanLogIn(false);
+	            this.authentication.logOut();
+	            this.authentication.setUsername(this.usernameField.getText());
+	            this.authentication.setPassword(String.valueOf(this.passwordField.getPassword()));
+	            final int passwordLength = this.passwordField.getPassword().length;
+	            this.passwordField.setText("");
+	            this.popup.getMinecraftLauncher().getLauncher().getVersionManager().getExecutorService().execute(new Runnable(){
+	
+	                @Override
+	                public void run() {
+	                    try {
+	                        LogInFormMacrosoft.this.authentication.logIn();
+	                        AuthenticationDatabase authDatabase = LogInFormMacrosoft.this.popup.getMinecraftLauncher().getProfileManager().getAuthDatabase();
+	                        if (LogInFormMacrosoft.this.authentication.getSelectedProfile() == null) {
+	                            if (ArrayUtils.isNotEmpty(LogInFormMacrosoft.this.authentication.getAvailableProfiles())) {
+	                                for (GameProfile profile : LogInFormMacrosoft.this.authentication.getAvailableProfiles()) {
+	                                    LogInFormMacrosoft.this.userDropdown.addItem(profile.getName());
+	                                }
+	                                SwingUtilities.invokeLater(new Runnable(){
+	
+	                                    @Override
+	                                    public void run() {
+	                                        LogInFormMacrosoft.this.usernameField.setEditable(false);
+	                                        LogInFormMacrosoft.this.passwordField.setEditable(false);
+	                                        LogInFormMacrosoft.this.userDropdownPanel.setVisible(true);
+	                                        LogInFormMacrosoft.this.popup.repack();
+	                                        LogInFormMacrosoft.this.popup.setCanLogIn(true);
+	                                        LogInFormMacrosoft.this.passwordField.setText(StringUtils.repeat('*', passwordLength));
+	                                    }
+	                                });
+	                            } else {
+	                                String uuid = "demo-" + LogInFormMacrosoft.this.authentication.getUserID();
+	                                authDatabase.register(uuid, LogInFormMacrosoft.this.authentication);
+	                                LogInFormMacrosoft.this.popup.setLoggedIn(uuid);
+	                            }
+	                        } else {
+	                            authDatabase.register(UUIDTypeAdapter.fromUUID(LogInFormMacrosoft.this.authentication.getSelectedProfile().getId()), LogInFormMacrosoft.this.authentication);
+	                            LogInFormMacrosoft.this.popup.setLoggedIn(UUIDTypeAdapter.fromUUID(LogInFormMacrosoft.this.authentication.getSelectedProfile().getId()));
+	                        }
+	                    }
+	                    catch (UserMigratedException ex) {
+	                        LOGGER.error("Couldn't log in", (Throwable)ex);
+	                        LogInFormMacrosoft.this.popup.getErrorForm().displayError(ex, "Sorry, but we can't log you in with your username.", "You have migrated your account, please use your email address.");
+	                        LogInFormMacrosoft.this.popup.setCanLogIn(true);
+	                    }
+	                    catch (InvalidCredentialsException ex) {
+	                        LOGGER.error("Couldn't log in", (Throwable)ex);
+	                        LogInFormMacrosoft.this.popup.getErrorForm().displayError(ex, "Sorry, but your username or password is incorrect!", "Please try again. If you need help, try the 'Forgot Password' link.");
+	                        LogInFormMacrosoft.this.popup.setCanLogIn(true);
+	                    }
+	                    catch (AuthenticationException ex) {
+	                        LOGGER.error("Couldn't log in", (Throwable)ex);
+	                        LogInFormMacrosoft.this.popup.getErrorForm().displayError(ex, "Sorry, but we couldn't connect to our servers.", "Please make sure that you are online and that Minecraft is not blocked.");
+	                        LogInFormMacrosoft.this.popup.setCanLogIn(true);
+	                    }
+	                }
+	
+	            });
+        	}
+	            
         }
     }
 
