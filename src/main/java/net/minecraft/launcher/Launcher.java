@@ -99,9 +99,14 @@ public class Launcher {
     public Launcher(JFrame frame, File workingDirectory, Proxy proxy, PasswordAuthentication proxyAuth, String[] args) {
         this(frame, workingDirectory, proxy, proxyAuth, args, 0);
     }
-
+    
+    public File getMacrosoftProfileWorkingDirectory() {
+    	String profileDir = this.getProfileManager().getSelectedProfile().getName().replaceAll("[\\\\/:*?\"<>| ]", "");
+    	return new File(this.getLauncher().getWorkingDirectory(), profileDir + "/");
+    }
+    
     public Launcher(JFrame frame, File workingDirectory, Proxy proxy, PasswordAuthentication proxyAuth, String[] args, Integer bootstrapVersion) {
-        LOGGER.info("Macrosoft was here");
+    	LOGGER.info("Macrosoft was here");
     	INSTANCE = this;
         this.setupErrorHandling();
         this.bootstrapVersion = bootstrapVersion;
