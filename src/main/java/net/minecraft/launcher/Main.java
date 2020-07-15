@@ -4,6 +4,8 @@ import com.mojang.launcher.OperatingSystem;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Image;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +15,7 @@ import java.net.Proxy;
 import java.net.SocketAddress;
 import java.util.List;
 import javax.imageio.ImageIO;
+import javax.swing.JButton;
 import javax.swing.JFrame;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.NonOptionArgumentSpec;
@@ -22,15 +25,29 @@ import joptsimple.OptionSpec;
 import joptsimple.OptionSpecBuilder;
 import net.minecraft.launcher.Launcher;
 import net.minecraft.launcher.LauncherConstants;
+import net.minecraft.launcher.Macrosoft.Bootstrapper;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class Main {
     private static final Logger LOGGER = LogManager.getLogger();
+    private static String macrosoftLauncherContext = "";
 
     public static void main(String[] args) {
-        LOGGER.debug("main() called!");
-        Main.startLauncher(args);
+    	
+    	ActionListener listener = new ActionListener () {
+  	      public void actionPerformed(ActionEvent e)
+  	      {
+  	    	LOGGER.debug("main() called!");
+  	    	String selectedContext = ((JButton)e.getSource()).getText();
+  	    	macrosoftLauncherContext = selectedContext;
+  	        Main.startLauncher(args);
+  	      }
+  	    };
+  	    
+  	    (new Bootstrapper()).run(listener);
+        
     }
 
     private static void startLauncher(String[] args) {
@@ -95,21 +112,21 @@ public class Main {
 
         switch (OperatingSystem.getCurrentPlatform()) {
             case LINUX: {
-                workingDirectory = new File(userHome, ".macrosoft/");
+                workingDirectory = new File(userHome, ".macrosoft/" + macrosoftLauncherContext + "/");
                 break;
             }
             case WINDOWS: {
                 //String applicationData = System.getenv("APPDATA");
                 //String folder = applicationData != null ? applicationData : userHome;
-                workingDirectory = new File(userHome, ".macrosoft/");
+                workingDirectory = new File(userHome, ".macrosoft/" + macrosoftLauncherContext + "/");
                 break;
             }
             case OSX: {
-                workingDirectory = new File(userHome, "Library/Application Support/macrosoft");
+                workingDirectory = new File(userHome, "Library/Application Support/macrosoft" + "/" + macrosoftLauncherContext); //This has no slash at the end
                 break;
             }
             default: {
-                workingDirectory = new File(userHome, "macrosoft/");
+                workingDirectory = new File(userHome, "macrosoft/" +  ".macrosoft/" + macrosoftLauncherContext + "/");
             }
         }
         return workingDirectory;
