@@ -226,4 +226,3 @@ public class LogInForm extends JPanel implements ActionListener {
     }
 
 }
-

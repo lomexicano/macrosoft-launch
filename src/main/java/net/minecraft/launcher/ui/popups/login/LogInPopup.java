@@ -3,6 +3,7 @@ package net.minecraft.launcher.ui.popups.login;
 import com.mojang.launcher.OperatingSystem;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.LayoutManager;
@@ -45,10 +46,14 @@ public class LogInPopup extends JPanel implements ActionListener {
     private final AuthErrorForm errorForm;
     private final ExistingUserListForm existingUserListForm;
     private final LogInFormMacrosoft logInForm;
+    private final LogInForm logInFormMojang;
     //private final LogInForm logInForm;
     private final JButton loginButton = new JButton("Log In");
+    private final JButton loginMojangButton = new JButton("Log In with Mojang");
     private final JButton registerButton = new JButton("Register");
+    private final JButton mojangButton = new JButton("Mojang Account");
     private final JProgressBar progressBar = new JProgressBar();
+    private JPanel buttonPanel = new JPanel();
 
     public LogInPopup(Launcher minecraftLauncher, Callback callback) {
         super(true);
@@ -57,10 +62,27 @@ public class LogInPopup extends JPanel implements ActionListener {
         this.errorForm = new AuthErrorForm(this);
         this.existingUserListForm = new ExistingUserListForm(this);
         this.logInForm = new LogInFormMacrosoft(this);
+        this.logInFormMojang = new LogInForm(this);
+        this.logInFormMojang.setVisible(false);
         //this.logInForm = new LogInForm(this);
         this.createInterface();
+        
+        try {
+			InputStream stream = JButton.class.getResourceAsStream("/mojang.png");
+	        if (stream != null) {
+	            BufferedImage image = ImageIO.read(stream);
+	            Image resized = new ImageIcon(image).getImage().getScaledInstance(15, 15, java.awt.Image.SCALE_SMOOTH);
+	            mojangButton.setIcon(new ImageIcon(resized));
+	        }
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+        
+        this.mojangButton.addActionListener(this);
         this.loginButton.addActionListener(this);
         this.registerButton.addActionListener(this);
+        this.loginMojangButton.addActionListener(this);
+       
     }
 
     protected void createInterface() {
@@ -85,10 +107,11 @@ public class LogInPopup extends JPanel implements ActionListener {
         }*/
         this.add(this.errorForm);
         this.add(this.logInForm);
+        this.add(this.logInFormMojang);
         this.add(Box.createVerticalStrut(15));
-        JPanel buttonPanel = new JPanel();
+        
         buttonPanel.setLayout(new GridLayout(1, 2, 10, 0));
-        //buttonPanel.add(this.registerButton);
+        buttonPanel.add(this.mojangButton);
         buttonPanel.add(this.loginButton);
         this.add(buttonPanel);
         this.progressBar.setIndeterminate(true);
@@ -100,8 +123,17 @@ public class LogInPopup extends JPanel implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == this.loginButton) {
             this.logInForm.tryLogIn();
+        } else if (e.getSource() == this.mojangButton) {
+        	this.logInForm.setVisible(false);
+        	this.logInFormMojang.setVisible(true);
+        	buttonPanel.add(this.registerButton);
+        	buttonPanel.add(this.loginMojangButton);
+        	buttonPanel.remove(this.loginButton);
+        	buttonPanel.remove(this.mojangButton);
         } else if (e.getSource() == this.registerButton) {
-            OperatingSystem.openLink(LauncherConstants.URL_REGISTER);
+        	OperatingSystem.openLink(LauncherConstants.URL_REGISTER);
+        } else if (e.getSource() == this.loginMojangButton) {
+        	this.logInFormMojang.tryLogIn();
         }
     }
 
