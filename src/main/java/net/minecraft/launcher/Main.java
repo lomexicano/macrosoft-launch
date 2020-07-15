@@ -26,6 +26,7 @@ import joptsimple.OptionSpecBuilder;
 import net.minecraft.launcher.Launcher;
 import net.minecraft.launcher.LauncherConstants;
 import net.minecraft.launcher.Macrosoft.Bootstrapper;
+import net.minecraft.launcher.ui.MacrosoftInit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,17 +37,27 @@ public class Main {
 
     public static void main(String[] args) {
     	
+    	MacrosoftInit initPanel = new MacrosoftInit("Welcome ^.^");
+    	
+    	ActionListener onLoad = new ActionListener () {
+	      public void actionPerformed(ActionEvent e)
+	      {
+	    	  initPanel.dispose();
+	      }
+	    };
+    	
     	ActionListener listener = new ActionListener () {
   	      public void actionPerformed(ActionEvent e)
   	      {
   	    	LOGGER.debug("main() called!");
   	    	String selectedContext = ((JButton)e.getSource()).getText();
   	    	macrosoftLauncherContext = selectedContext;
+  	    	initPanel.dispose();
   	        Main.startLauncher(args);
   	      }
   	    };
   	    
-  	    (new Bootstrapper(Main.getWorkingDirectory())).run(listener);
+  	    (new Bootstrapper(Main.getWorkingDirectory())).run(onLoad, listener);
         
     }
 

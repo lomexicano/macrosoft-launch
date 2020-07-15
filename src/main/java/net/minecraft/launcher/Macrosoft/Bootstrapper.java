@@ -185,7 +185,7 @@ public class Bootstrapper {
 		
 	}
 	
-	public void run(ActionListener listener) {
+	public void run(ActionListener onload, ActionListener listener) {
 		
 		for (JButton jButton : contexts) {
 			jButton.addActionListener(new ActionListener() {
@@ -213,6 +213,8 @@ public class Bootstrapper {
 				}
 			});
 		}
+		
+		onload.actionPerformed(null);
 	
 		frame.setVisible(true);
 	}
