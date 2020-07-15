@@ -53,7 +53,7 @@ public class Bootstrapper {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		try {
-			JSONObject info = Connector.get("http://127.0.0.1:8000/launcher/info?format=json");
+			JSONObject info = Connector.get("https://webmacrosoft.herokuapp.com/launcher/info?format=json");
 			int version = (int)info.get("version");
 			frameHeight = (int)info.get("menuHeight");
 			websiteLink = (String)info.get("site");
