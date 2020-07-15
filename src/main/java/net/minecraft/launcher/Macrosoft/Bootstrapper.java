@@ -45,7 +45,7 @@ public class Bootstrapper {
 		
 		System.out.println("Loading Macrosoft Bootstrapper...");
 		
-		int frameHeight = 150;
+		int frameHeight = 130;
 		String websiteLink = "https://webmacrosoft.herokuapp.com/";
 		String discordLink = "https://discord.gg/t7WcjJ4";
 		
@@ -56,9 +56,9 @@ public class Bootstrapper {
 			JSONObject info = Connector.get("http://127.0.0.1:8000/launcher/info?format=json");
 			int version = (int)info.get("version");
 			frameHeight = (int)info.get("menuHeight");
-			if (version < LauncherConstants.MACROSOFT_VERSION) {
-				JOptionPane.showMessageDialog(frame, "Your laucher is out-dated. Upgrade to version " + version, "Outdated", JOptionPane.WARNING_MESSAGE);
-			}
+			websiteLink = (String)info.get("site");
+			discordLink = (String)info.get("discord");
+			
 			JSONArray servers = (JSONArray)info.get("servers");
 			for (Object object : servers) {
 				JButton button = new JButton((String)((JSONObject)object).get("name"));
@@ -76,10 +76,15 @@ public class Bootstrapper {
 				
 				contexts.add(button);
 			}
+			
+			if (version > LauncherConstants.MACROSOFT_VERSION) {
+				JOptionPane.showMessageDialog(frame, "Your launcher is out-dated. Upgrade to version " + version + ". Access our website or Discord channel", "Outdated", JOptionPane.WARNING_MESSAGE);
+			}
+			
 		} catch(IOException e) {
-			JOptionPane.showMessageDialog(frame, "Could not stablish the connection with Macrosoft Server", "Error connection", JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(frame, "Could not stablish connection with Macrosoft Server", "Error connection", JOptionPane.ERROR_MESSAGE);
 		} catch (JSONException e) {
-			JOptionPane.showMessageDialog(frame, "Could not stablish the connection with Macrosoft Server", "Error connection", JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(frame, "Could not parse response from Macrosoft Server", "Server issue", JOptionPane.ERROR_MESSAGE);
 		}
 		
 		frame.setSize(new Dimension(300,frameHeight));
@@ -119,10 +124,13 @@ public class Bootstrapper {
 		JButton link = new JButton("Website");
 		link.setBorderPainted(false);
 		
+		String site = websiteLink;
+		String discord = discordLink;
+		
 		link.addActionListener(new ActionListener() {
 		    public void actionPerformed(ActionEvent e) {
 		    	try {
-		    		java.awt.Desktop.getDesktop().browse(java.net.URI.create(websiteLink));
+		    		java.awt.Desktop.getDesktop().browse(java.net.URI.create(site));
 		    	} catch (IOException ex) {
 		    		ex.printStackTrace();
 		    	}
@@ -136,7 +144,7 @@ public class Bootstrapper {
 		linkSocial.addActionListener(new ActionListener() {
 		    public void actionPerformed(ActionEvent e) {
 		    	try {
-		    		java.awt.Desktop.getDesktop().browse(java.net.URI.create(discordLink));
+		    		java.awt.Desktop.getDesktop().browse(java.net.URI.create(discord));
 		    	} catch (IOException ex) {
 		    		ex.printStackTrace();
 		    	}
