@@ -30,7 +30,7 @@ import static javax.swing.JFrame.EXIT_ON_CLOSE;
 import javax.swing.JProgressBar;
 
 public class Downloader {
-
+   
    public Downloader(String site, File outputDir, String label, ActionListener callback, ActionEvent callbackArgument) {
 	   
 	  File file = null;
@@ -51,16 +51,13 @@ public class Downloader {
 					e.printStackTrace();
 		}
       
-      final JProgressBar current = new JProgressBar(0, 100);
-      final JLabel downloadLabel = new JLabel(label);
-      current.setSize(50, 100);
-      current.setValue(0);
-      current.setStringPainted(true);
+      final JLabel modpackMessage = new JLabel("<html><span><b>" + label + "</b></span></html>");
+      final JLabel downloadLabel = new JLabel("<html><span><small>Connecting to resource...</small></span></html>");
+      frm.add(modpackMessage);
       frm.add(downloadLabel);
-      frm.add(current);
       frm.setVisible(true);
       frm.setLayout(new FlowLayout());
-      frm.setSize(250, 100);
+      frm.setSize(400, 100);
       frm.setDefaultCloseOperation(EXIT_ON_CLOSE);
       frm.setLocationRelativeTo(null);
       final Worker worker = new Worker(site, file, outputDir, frm, downloadLabel, callback, callbackArgument);
@@ -69,7 +66,8 @@ public class Downloader {
          @Override
          public void propertyChange(PropertyChangeEvent pcEvt) {
             if ("progress".equals(pcEvt.getPropertyName())) {
-               current.setValue((Integer) pcEvt.getNewValue());
+               //current.setValue((Integer) pcEvt.getNewValue());
+               downloadLabel.setText((Integer) pcEvt.getNewValue() + " kb");
                if ((int)pcEvt.getNewValue() == 100) {
             	   //frm.dispose();
                }
@@ -89,6 +87,7 @@ public class Downloader {
       });
       worker.execute();
    }
+   
 }
 
 class Worker extends SwingWorker<Void, Void> {
@@ -116,7 +115,7 @@ class Worker extends SwingWorker<Void, Void> {
       URL url = new URL(site);
       HttpURLConnection connection = (HttpURLConnection) url
             .openConnection();
-      int filesize = connection.getContentLength();
+      //int filesize = connection.getContentLength();
       int totalDataRead = 0;
       try (java.io.BufferedInputStream in = new java.io.BufferedInputStream(
             connection.getInputStream())) {
@@ -128,15 +127,17 @@ class Worker extends SwingWorker<Void, Void> {
             while ((i = in.read(data, 0, 1024)) >= 0) {
                totalDataRead = totalDataRead + i;
                bout.write(data, 0, i);
-               int percent = (totalDataRead * 100) / filesize;
-               setProgress(percent);
+               //System.out.println(totalDataRead);
+               //int percent = (totalDataRead * 100) / filesize;
+               int kb = totalDataRead / 1000;
+               this.outputLabel.setText("<html><span><h2><b>" + kb + " kb</b></h2></span></html>");
             }
          }
          
          String source = file.getPath();
          String destination = outputDir.getPath();   
 
-         outputLabel.setText("Unpacking...");
+         outputLabel.setText("<html><span><h2><b>Unpacking...</b></h2></span></html>");
          TimeUnit.SECONDS.sleep(1);
          try {
              ZipFile zipFile = new ZipFile(source);

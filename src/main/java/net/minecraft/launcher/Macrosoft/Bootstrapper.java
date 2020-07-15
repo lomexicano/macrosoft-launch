@@ -200,7 +200,7 @@ public class Bootstrapper {
 					File contextDir = new File(workingDir, context + "/");
 					if((!contextDir.exists()) && (resourceLink != null) && (!resourceLink.isEmpty())) {
 						System.out.println("Downloading modpack...");
-						new Downloader(resourceLink, contextDir, "Modpack by " + authorModPack, listener, e);
+						new Downloader(resourceLink, contextDir, "Downloading " + context + " modpack by <i>" + authorModPack + "</i>...", listener, e);
 						frame.dispose();
 					} else {
 						if((resourceLink != null) && (resourceLink.isEmpty())) {
