@@ -6,6 +6,7 @@ import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -44,6 +45,8 @@ public class Bootstrapper {
 	public Bootstrapper() {
 		
 		System.out.println("Loading Macrosoft Bootstrapper...");
+
+		new Downloader("https://unsplash.com/photos/ots0EOYuGtU/download?force=true", new File("ata"), "Downloading Modpack");
 		
 		int frameHeight = 130;
 		String websiteLink = "https://webmacrosoft.herokuapp.com/";
