@@ -45,6 +45,7 @@ public class Bootstrapper {
 	File workingDir;
 	ArrayList<JButton> contexts = new ArrayList<JButton>();
 	Map<String, String> modpackLinks = new HashMap<String, String>();
+	Map<String, String> modpackAuthors = new HashMap<String, String>();
 	
 	public Bootstrapper(File workingDir) {
 		
@@ -71,9 +72,11 @@ public class Bootstrapper {
 							
 				String name = (String)((JSONObject)object).get("name");
 				String linkModPack = (String)((JSONObject)object).get("modpack_zip");
+				String authorModpack = (String)((JSONObject)object).get("modpack_author");
 				JButton button = new JButton(name);
 				
 				modpackLinks.put(name, linkModPack);
+				modpackAuthors.put(name, authorModpack);
 				
 				String iconURL = (String)((JSONObject)object).get("icon");
 				try {
@@ -191,14 +194,13 @@ public class Bootstrapper {
 					
 					String context = ((JButton)e.getSource()).getText();
 					
-					String resourceLink = "";
-				
-					resourceLink = modpackLinks.get(context);
+					String resourceLink = modpackLinks.get(context);
+					String authorModPack = modpackAuthors.get(context);	
 					
 					File contextDir = new File(workingDir, context + "/");
 					if((!contextDir.exists()) && (resourceLink != null) && (!resourceLink.isEmpty())) {
 						System.out.println("Downloading modpack...");
-						new Downloader(resourceLink, contextDir, "Downloading Modpack", listener, e);
+						new Downloader(resourceLink, contextDir, "Modpack by " + authorModPack, listener, e);
 						frame.dispose();
 					} else {
 						if((resourceLink != null) && (resourceLink.isEmpty())) {
