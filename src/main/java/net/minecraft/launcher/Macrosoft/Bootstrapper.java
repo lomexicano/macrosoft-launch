@@ -12,6 +12,8 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.imageio.ImageIO;
 import javax.swing.Icon;
@@ -42,6 +44,7 @@ public class Bootstrapper {
 	JButton b1;
 	File workingDir;
 	ArrayList<JButton> contexts = new ArrayList<JButton>();
+	Map<String, String> modpackLinks = new HashMap<String, String>();
 	
 	public Bootstrapper(File workingDir) {
 		
@@ -65,7 +68,13 @@ public class Bootstrapper {
 			
 			JSONArray servers = (JSONArray)info.get("servers");
 			for (Object object : servers) {
-				JButton button = new JButton((String)((JSONObject)object).get("name"));
+							
+				String name = (String)((JSONObject)object).get("name");
+				String linkModPack = (String)((JSONObject)object).get("modpack_zip");
+				JButton button = new JButton(name);
+				
+				modpackLinks.put(name, linkModPack);
+				
 				String iconURL = (String)((JSONObject)object).get("icon");
 				try {
 					InputStream stream = new URL(iconURL).openStream();
@@ -86,8 +95,10 @@ public class Bootstrapper {
 			}
 			
 		} catch(IOException e) {
+			e.printStackTrace();
 			JOptionPane.showMessageDialog(frame, "Could not stablish connection with Macrosoft Server", "Error connection", JOptionPane.ERROR_MESSAGE);
 		} catch (JSONException e) {
+			e.printStackTrace();
 			JOptionPane.showMessageDialog(frame, "Could not parse response from Macrosoft Server", "Server issue", JOptionPane.ERROR_MESSAGE);
 		}
 		
@@ -178,12 +189,21 @@ public class Bootstrapper {
 				public void actionPerformed(ActionEvent e) {
 					frame.setVisible(false);
 					
-					File contextDir = new File(workingDir, ((JButton)e.getSource()).getText() + "/");
-					if(!contextDir.exists()) {
+					String context = ((JButton)e.getSource()).getText();
+					
+					String resourceLink = "";
+				
+					resourceLink = modpackLinks.get(context);
+					
+					File contextDir = new File(workingDir, context + "/");
+					if((!contextDir.exists()) && (resourceLink != null) && (!resourceLink.isEmpty())) {
 						System.out.println("Downloading modpack...");
-						new Downloader("https://cdn-34.anonfiles.com/Jfeba9Gbo9/f1094c7f-1594803140/favicon_io(1).zip", contextDir, "Downloading Modpack", listener, e);
+						new Downloader(resourceLink, contextDir, "Downloading Modpack", listener, e);
 						frame.dispose();
 					} else {
+						if((resourceLink != null) && (resourceLink.isEmpty())) {
+							System.out.println("No modpack source defined");
+						}
 						System.out.println("Modpack download skipped");
 						listener.actionPerformed(e);
 					}
