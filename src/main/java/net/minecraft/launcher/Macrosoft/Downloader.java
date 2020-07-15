@@ -1,19 +1,29 @@
 package net.minecraft.launcher.Macrosoft;
 
 import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import javax.imageio.ImageIO;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.SwingWorker;
+
+import net.lingala.zip4j.ZipFile;
+import net.lingala.zip4j.exception.ZipException;
 
 import static javax.swing.JFrame.EXIT_ON_CLOSE;
 
@@ -21,8 +31,8 @@ import javax.swing.JProgressBar;
 
 public class Downloader {
 
-   public Downloader(String site, File output, String label) {
-	  
+   public Downloader(String site, File outputDir, String label, ActionListener callback, ActionEvent callbackArgument) {
+	   
 	  File file = null;
 	  try {
 		  file = File.createTempFile("macrosoftfile", ".tmp");
@@ -30,7 +40,7 @@ public class Downloader {
 		  e.printStackTrace();
 	  }
 	  
-      JFrame frm = new JFrame("Downloading...");
+      JFrame frm = new JFrame("Download");
       try {
 			InputStream stream = JButton.class.getResourceAsStream("/favicon.png");
 			if (stream != null) {
@@ -53,7 +63,7 @@ public class Downloader {
       frm.setSize(250, 100);
       frm.setDefaultCloseOperation(EXIT_ON_CLOSE);
       frm.setLocationRelativeTo(null);
-      final Worker worker = new Worker(site, file);
+      final Worker worker = new Worker(site, file, outputDir, frm, downloadLabel, callback, callbackArgument);
       worker.addPropertyChangeListener(new PropertyChangeListener() {
 
          @Override
@@ -61,14 +71,17 @@ public class Downloader {
             if ("progress".equals(pcEvt.getPropertyName())) {
                current.setValue((Integer) pcEvt.getNewValue());
                if ((int)pcEvt.getNewValue() == 100) {
-            	   frm.dispose();
+            	   //frm.dispose();
                }
             } else if (pcEvt.getNewValue() == SwingWorker.StateValue.DONE) {
                try {
                   worker.get();
                } catch (InterruptedException | ExecutionException e) {
                   // handle any errors here
-                  e.printStackTrace(); 
+       			  JOptionPane.showMessageDialog(frm, e.getMessage(), "Download error", JOptionPane.ERROR_MESSAGE);
+       			  frm.dispose();
+       			  e.printStackTrace(); 
+       			  System.exit(1);
                }
             }
 
@@ -81,12 +94,23 @@ public class Downloader {
 class Worker extends SwingWorker<Void, Void> {
    private String site;
    private File file;
+   private File outputDir;
+   private ActionListener callback;
+   private ActionEvent callbackArgument;
+   private JFrame outputFrame;
+   private JLabel outputLabel;
 
-   public Worker(String site, File file) {
+   public Worker(String site, File file, File outputDir, JFrame outputFrame, JLabel outputLabel, ActionListener callback, ActionEvent callbackArgument) {
       this.site = site;
       this.file = file;
+      this.outputDir = outputDir;
+      this.callback = callback;
+      this.callbackArgument = callbackArgument;
+      this.outputFrame = outputFrame;
+      this.outputLabel = outputLabel;
    }
 
+   
    @Override
    protected Void doInBackground() throws Exception {
       URL url = new URL(site);
@@ -108,7 +132,30 @@ class Worker extends SwingWorker<Void, Void> {
                setProgress(percent);
             }
          }
+         
+         String source = file.getPath();
+         String destination = outputDir.getPath();   
+
+         outputLabel.setText("Unpacking...");
+         TimeUnit.SECONDS.sleep(1);
+         try {
+             ZipFile zipFile = new ZipFile(source);
+             zipFile.extractAll(destination);
+         } catch (ZipException e) {
+        	 JFrame frm = new JFrame("File unzip");
+             frm.setDefaultCloseOperation(EXIT_ON_CLOSE);
+             frm.setLocationRelativeTo(null);
+             JOptionPane.showMessageDialog(frm, e.getMessage(), "Unzip error", JOptionPane.ERROR_MESSAGE);
+             frm.dispose();
+             e.printStackTrace();
+             System.exit(1);
+         }
+         
+         outputFrame.dispose();
+         this.callback.actionPerformed(this.callbackArgument);
+         
       }
+      
       return null;
    }
 }

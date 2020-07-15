@@ -46,7 +46,7 @@ public class Main {
   	      }
   	    };
   	    
-  	    (new Bootstrapper()).run(listener);
+  	    (new Bootstrapper(Main.getWorkingDirectory())).run(listener);
         
     }
 

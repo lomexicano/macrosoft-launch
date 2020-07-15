@@ -40,13 +40,14 @@ public class Bootstrapper {
 	JFrame frame;
 	JPanel panel;
 	JButton b1;
+	File workingDir;
 	ArrayList<JButton> contexts = new ArrayList<JButton>();
 	
-	public Bootstrapper() {
+	public Bootstrapper(File workingDir) {
 		
 		System.out.println("Loading Macrosoft Bootstrapper...");
-
-		new Downloader("https://unsplash.com/photos/ots0EOYuGtU/download?force=true", new File("ata"), "Downloading Modpack");
+		
+		this.workingDir = workingDir;
 		
 		int frameHeight = 130;
 		String websiteLink = "https://webmacrosoft.herokuapp.com/";
@@ -176,8 +177,17 @@ public class Bootstrapper {
 			jButton.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					frame.setVisible(false);
-					listener.actionPerformed(e);
-					frame.dispose();
+					
+					File contextDir = new File(workingDir, ((JButton)e.getSource()).getText() + "/");
+					if(!contextDir.exists()) {
+						System.out.println("Downloading modpack...");
+						new Downloader("https://cdn-34.anonfiles.com/Jfeba9Gbo9/f1094c7f-1594803140/favicon_io(1).zip", contextDir, "Downloading Modpack", listener, e);
+						frame.dispose();
+					} else {
+						System.out.println("Modpack download skipped");
+						listener.actionPerformed(e);
+					}
+					
 				}
 			});
 		}
