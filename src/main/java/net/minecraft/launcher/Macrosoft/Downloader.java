@@ -50,7 +50,7 @@ public class Downloader {
 		} catch (IOException e) {
 					e.printStackTrace();
 		}
-      
+    
       final JLabel modpackMessage = new JLabel("<html><span><b>" + label + "</b></span></html>");
       final JLabel downloadLabel = new JLabel("<html><span><small>Connecting to resource...</small></span></html>");
       frm.add(modpackMessage);
@@ -67,7 +67,6 @@ public class Downloader {
          public void propertyChange(PropertyChangeEvent pcEvt) {
             if ("progress".equals(pcEvt.getPropertyName())) {
                //current.setValue((Integer) pcEvt.getNewValue());
-               downloadLabel.setText((Integer) pcEvt.getNewValue() + " kb");
                if ((int)pcEvt.getNewValue() == 100) {
             	   //frm.dispose();
                }
@@ -98,6 +97,7 @@ class Worker extends SwingWorker<Void, Void> {
    private ActionEvent callbackArgument;
    private JFrame outputFrame;
    private JLabel outputLabel;
+   private JProgressBar progressBar;
 
    public Worker(String site, File file, File outputDir, JFrame outputFrame, JLabel outputLabel, ActionListener callback, ActionEvent callbackArgument) {
       this.site = site;
@@ -107,6 +107,7 @@ class Worker extends SwingWorker<Void, Void> {
       this.callbackArgument = callbackArgument;
       this.outputFrame = outputFrame;
       this.outputLabel = outputLabel;
+      this.progressBar = progressBar;
    }
 
    
@@ -115,7 +116,8 @@ class Worker extends SwingWorker<Void, Void> {
       URL url = new URL(site);
       HttpURLConnection connection = (HttpURLConnection) url
             .openConnection();
-      //int filesize = connection.getContentLength();
+      int filesize = connection.getContentLength();
+      long progress = 0;
       int totalDataRead = 0;
       try (java.io.BufferedInputStream in = new java.io.BufferedInputStream(
             connection.getInputStream())) {
@@ -127,10 +129,16 @@ class Worker extends SwingWorker<Void, Void> {
             while ((i = in.read(data, 0, 1024)) >= 0) {
                totalDataRead = totalDataRead + i;
                bout.write(data, 0, i);
-               //System.out.println(totalDataRead);
-               //int percent = (totalDataRead * 100) / filesize;
+               
                int kb = totalDataRead / 1000;
-               this.outputLabel.setText("<html><span><h2><b>" + kb + " kb</b></h2></span></html>");
+               
+               progress = (100 * (totalDataRead / 1000)) / (filesize / 1000);
+               
+               if(filesize>0) {
+            	   this.outputLabel.setText("<html><span><h2><b>" + kb + " kB </b><i>" + progress + "%</i></h2></span></html>");
+               } else {
+            	   this.outputLabel.setText("<html><span><h2><b>" + kb + " kB</b></h2></span></html>");
+               }
             }
          }
          
