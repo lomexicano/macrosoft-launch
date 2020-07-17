@@ -119,6 +119,7 @@ class Worker extends SwingWorker<Void, Void> {
       int filesize = connection.getContentLength();
       long progress = 0;
       int totalDataRead = 0;
+      long lastProgres = 0;
       try (java.io.BufferedInputStream in = new java.io.BufferedInputStream(
             connection.getInputStream())) {
          java.io.FileOutputStream fos = new java.io.FileOutputStream(file);
@@ -130,15 +131,20 @@ class Worker extends SwingWorker<Void, Void> {
                totalDataRead = totalDataRead + i;
                bout.write(data, 0, i);
                
-               int kb = totalDataRead / 1000;
+               int mb = totalDataRead / 1000000;
                
                progress = (100 * (totalDataRead / 1000)) / (filesize / 1000);
                
-               if(filesize>0) {
-            	   this.outputLabel.setText("<html><span><h2><b>" + kb + " kB </b><i>" + progress + "%</i></h2></span></html>");
-               } else {
-            	   this.outputLabel.setText("<html><span><h2><b>" + kb + " kB</b></h2></span></html>");
-               }
+               if(lastProgres != progress) {
+	               if(filesize>0) {
+	            	   this.outputLabel.setText("<html><h2><span><b>" + mb + "mB </b></span><span><small>" + progress + "%</small></span></h2></html>");
+	               } else {
+	            	   this.outputLabel.setText("<html><span><h2><b>" + mb + "mB</b></h2></span></html>");
+	               }
+            	}
+               
+               lastProgres = progress;
+               
             }
          }
          
