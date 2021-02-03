@@ -57,7 +57,7 @@ public class LauncherPanel extends JPanel {
         String[] split;
         boolean upgradableOS;
         JPanel result = new JPanel(new BorderLayout());
-        this.tabPanel.getBlog().setPage(LauncherConstants.URL_WEBSITE);
+        //this.tabPanel.getBlog().setPage(LauncherConstants.URL_WEBSITE);
         boolean javaBootstrap = this.getMinecraftLauncher().getBootstrapVersion() < 100;
         boolean bl = upgradableOS = OperatingSystem.getCurrentPlatform() == OperatingSystem.WINDOWS;
         if (OperatingSystem.getCurrentPlatform() == OperatingSystem.OSX && (ver = SystemUtils.OS_VERSION) != null && !ver.isEmpty() && (split = ver.split("\\.", 3)).length >= 2) {

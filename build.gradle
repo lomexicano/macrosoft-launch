@@ -6,8 +6,9 @@ plugins {
 
 mainClassName = 'net.minecraft.launcher.Main'
 
-sourceCompatibility = '1.8'
-targetCompatibility = '1.8'
+apply plugin: 'java' 		// 
+sourceCompatibility = 1.8	// It ensures java 8 as compiler
+targetCompatibility = 1.8	//
 
 repositories {
     mavenCentral()

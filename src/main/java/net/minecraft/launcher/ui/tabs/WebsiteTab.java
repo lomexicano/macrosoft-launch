@@ -15,56 +15,27 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import javax.swing.JPanel;
 import net.minecraft.launcher.Launcher;
-import net.minecraft.launcher.ui.tabs.website.Browser;
-import net.minecraft.launcher.ui.tabs.website.JFXBrowser;
-import net.minecraft.launcher.ui.tabs.website.LegacySwingBrowser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class WebsiteTab
 extends JPanel {
     private static final Logger LOGGER = LogManager.getLogger();
-    private final Browser browser = this.selectBrowser();
+    //private final Browser browser = this.selectBrowser();
     private final Launcher minecraftLauncher;
 
     public WebsiteTab(Launcher minecraftLauncher) {
         this.minecraftLauncher = minecraftLauncher;
         this.setLayout(new BorderLayout());
-        this.add(this.browser.getComponent(), "Center");
-        this.browser.resize(this.getSize());
+        //this.add(this.browser.getComponent(), "Center");
+        //this.browser.resize(this.getSize());
         this.addComponentListener(new ComponentAdapter(){
 
             @Override
             public void componentResized(ComponentEvent e) {
-                WebsiteTab.this.browser.resize(e.getComponent().getSize());
+                //WebsiteTab.this.browser.resize(e.getComponent().getSize());
             }
         });
-    }
-
-    private Browser selectBrowser() {
-        if (this.hasJFX()) {
-            LOGGER.info("JFX is already initialized");
-            return new JFXBrowser();
-        }
-        File jfxrt = new File(System.getProperty("java.home"), "lib/jfxrt.jar");
-        if (jfxrt.isFile()) {
-            LOGGER.debug("Attempting to load {}...", jfxrt);
-            try {
-                WebsiteTab.addToSystemClassLoader(jfxrt);
-                LOGGER.info("JFX has been detected & successfully loaded");
-                return new JFXBrowser();
-            }
-            catch (Throwable e) {
-                LOGGER.debug("JFX has been detected but unsuccessfully loaded", e);
-                return new LegacySwingBrowser();
-            }
-        }
-        LOGGER.debug("JFX was not found at {}", jfxrt);
-        return new LegacySwingBrowser();
-    }
-
-    public void setPage(String url) {
-        this.browser.loadUrl(url);
     }
 
     public Launcher getMinecraftLauncher() {
