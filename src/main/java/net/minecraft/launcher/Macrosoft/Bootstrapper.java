@@ -26,6 +26,7 @@ import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import javax.swing.SwingConstants;
 
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -49,7 +50,11 @@ public class Bootstrapper {
 	
 	public Bootstrapper(File workingDir) {
 		
+		boolean javaVersionOK = System.getProperty("java.runtime.version").matches("^1\\.8\\..*");
+	
 		System.out.println("Loading Macrosoft Bootstrapper...");
+		
+		System.out.println("Is Java " + System.getProperty("java.runtime.version") + " supported? " + javaVersionOK+ " (it requires java 1.8.x)");
 		
 		this.workingDir = workingDir;
 		
@@ -91,6 +96,10 @@ public class Bootstrapper {
 				}
 				
 				contexts.add(button);
+			}
+			
+			if (!javaVersionOK) {
+				JOptionPane.showMessageDialog(frame, "Your Java version is " + System.getProperty("java.runtime.version") + ". It's not fully supported! Please install Java version 1.8.x", "Java version not fully supported", JOptionPane.WARNING_MESSAGE);
 			}
 			
 			if (version > LauncherConstants.MACROSOFT_VERSION) {
