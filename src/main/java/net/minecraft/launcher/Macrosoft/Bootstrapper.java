@@ -1,6 +1,7 @@
 package net.minecraft.launcher.Macrosoft;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
@@ -25,6 +26,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import javax.swing.SwingConstants;
+import javax.swing.text.AttributeSet.ColorAttribute;
+import javax.swing.text.StyleConstants.ColorConstants;
 
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
@@ -61,18 +64,28 @@ public class Bootstrapper {
 		int frameHeight = 130;
 		String websiteLink = "https://webmacrosoft.herokuapp.com/";
 		String discordLink = "https://discord.gg/t7WcjJ4";
+		int version = Integer.MAX_VALUE;
+		String downloadLink = websiteLink;
 		
 		frame = new JFrame("Macrosoft Launcher v" + LauncherConstants.MACROSOFT_VERSION);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		try {
 			JSONObject info = Connector.get("https://webmacrosoft.herokuapp.com/launcher/info?format=json");
-			int version = (int)info.get("version");
+			version = (int)info.get("version");
 			frameHeight = (int)info.get("menuHeight");
 			websiteLink = (String)info.get("site");
+			downloadLink = websiteLink;
 			discordLink = (String)info.get("discord");
 			
+			try {
+				downloadLink = (String)info.get("download");
+			} catch (Exception e) {
+				// TODO: handle exception
+			}
+			
 			JSONArray servers = (JSONArray)info.get("servers");
+			
 			for (Object object : servers) {
 							
 				String name = (String)((JSONObject)object).get("name");
@@ -97,9 +110,16 @@ public class Bootstrapper {
 				
 				contexts.add(button);
 			}
+		
 			
 			if (!javaVersionOK) {
 				JOptionPane.showMessageDialog(frame, "Your Java version is " + System.getProperty("java.runtime.version") + ". It's not fully supported! Please install Java version 1.8.x", "Java version not fully supported", JOptionPane.WARNING_MESSAGE);
+				
+				try {
+					
+				} catch (Exception e) {
+					// TODO: handle exception
+				}
 			}
 			
 			if (version > LauncherConstants.MACROSOFT_VERSION) {
@@ -114,16 +134,16 @@ public class Bootstrapper {
 			JOptionPane.showMessageDialog(frame, "Could not parse response from Macrosoft Server", "Server issue", JOptionPane.ERROR_MESSAGE);
 		}
 		
-		frame.setSize(new Dimension(300,frameHeight));
+		frame.setSize(new Dimension(350,frameHeight));
 	
 		panel = new JPanel();
 
 		JButton defaultButton = new JButton("Other");
 		
 		try {
-			InputStream stream = JButton.class.getResourceAsStream("/minecraft_logo.png");
-	        if (stream != null) {
-	            BufferedImage image = ImageIO.read(stream);
+			//InputStream stream = JButton.class.getResourceAsStream("/minecraft_logo.png");
+			BufferedImage image = ImageIO.read(this.getClass().getResource("/minecraft_logo.png"));
+	        if (image != null) {
 	            JLabel label = new JLabel(new ImageIcon(image));
                 panel.add(label);
 	        }
@@ -132,9 +152,9 @@ public class Bootstrapper {
 		}
 		
 		try {
-			InputStream stream = JButton.class.getResourceAsStream("/mc.png");
-	        if (stream != null) {
-	            BufferedImage image = ImageIO.read(stream);
+			//InputStream stream = JButton.class.getResourceAsStream("/mc.png");
+			BufferedImage image = ImageIO.read(this.getClass().getResource("/mc.png"));
+	        if (image != null) {
 	            Image resized = new ImageIcon(image).getImage().getScaledInstance(15, 15, java.awt.Image.SCALE_SMOOTH);
 	            defaultButton.setIcon(new ImageIcon(resized));
 	        }
@@ -152,7 +172,23 @@ public class Bootstrapper {
 		link.setBorderPainted(false);
 		
 		String site = websiteLink;
-		String discord = discordLink;
+		String discord = discordLink;	
+		
+		if (version > LauncherConstants.MACROSOFT_VERSION) {
+			JButton linkDownload = new JButton("Download latest version");
+			linkDownload.setBackground(Color.GREEN);
+			String linkToDownload = downloadLink;
+			linkDownload.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					try {
+						java.awt.Desktop.getDesktop().browse(java.net.URI.create(linkToDownload));
+					} catch (IOException ex) {
+						ex.printStackTrace();
+					}
+				}
+			});
+			panel.add(linkDownload);	
+		}
 		
 		link.addActionListener(new ActionListener() {
 		    public void actionPerformed(ActionEvent e) {
@@ -180,9 +216,9 @@ public class Bootstrapper {
 		panel.add(linkSocial);
 		
 		try {
-			InputStream stream = JButton.class.getResourceAsStream("/favicon.png");
-	        if (stream != null) {
-	            BufferedImage image = ImageIO.read(stream);
+			//InputStream stream = JButton.class.getResourceAsStream("/favicon.png");
+			BufferedImage image = ImageIO.read(this.getClass().getResource("/favicon.png"));
+	        if (image != null) {
 	            frame.setIconImage(image);
 	        }
 		} catch (IOException e) {

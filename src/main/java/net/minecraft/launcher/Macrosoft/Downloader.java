@@ -42,9 +42,8 @@ public class Downloader {
 	  
       JFrame frm = new JFrame("Download");
       try {
-			InputStream stream = JButton.class.getResourceAsStream("/favicon.png");
-			if (stream != null) {
-				BufferedImage image = ImageIO.read(stream);
+    	  	BufferedImage image = ImageIO.read(this.getClass().getResource("/favicon.png"));
+			if (image != null) {
 				frm.setIconImage(image);
 			}
 		} catch (IOException e) {
@@ -146,7 +145,7 @@ class Worker extends SwingWorker<Void, Void> {
             		this.outputLabel.setText("<html><span><h2><b>" + mb + "mB</b></h2></span></html>");
             	}
                
-               System.out.println(totalDataRead);
+               //System.out.println(totalDataRead);
                lastProgres = progress;
                lastTotalDataRead = totalDataRead;
                

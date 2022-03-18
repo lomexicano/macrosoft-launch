@@ -6,6 +6,7 @@ import java.awt.Dimension;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -89,9 +90,10 @@ public class Main {
         frame.setTitle("Macrosoft Launcher");
         frame.setPreferredSize(new Dimension(900, 580));
         try {
-            InputStream in = Launcher.class.getResourceAsStream("/favicon.png");
-            if (in != null) {
-                frame.setIconImage(ImageIO.read(in));
+            //InputStream in = Launcher.class.getResourceAsStream("/favicon.png");
+            BufferedImage image = ImageIO.read(Main.class.getResource("/favicon.png"));
+            if (image != null) {
+                frame.setIconImage(image);
             }
         } catch (IOException in) {
             // empty catch block

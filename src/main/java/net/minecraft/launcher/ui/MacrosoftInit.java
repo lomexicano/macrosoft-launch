@@ -17,9 +17,9 @@ public class MacrosoftInit extends JFrame {
 		super(title);
 		
 		try {
-			InputStream stream = JButton.class.getResourceAsStream("/favicon.png");
-	        if (stream != null) {
-	            BufferedImage image = ImageIO.read(stream);
+			//InputStream stream = JButton.class.getResourceAsStream("/favicon.png");
+			BufferedImage image = ImageIO.read(this.getClass().getResource("/favicon.png"));
+	        if (image != null) {
 	            this.setIconImage(image);
 	        }
 		} catch (IOException e) {

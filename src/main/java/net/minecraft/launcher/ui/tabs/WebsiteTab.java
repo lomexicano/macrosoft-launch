@@ -20,7 +20,11 @@ import org.apache.logging.log4j.Logger;
 
 public class WebsiteTab
 extends JPanel {
-    private static final Logger LOGGER = LogManager.getLogger();
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private static final Logger LOGGER = LogManager.getLogger();
     //private final Browser browser = this.selectBrowser();
     private final Launcher minecraftLauncher;
 
