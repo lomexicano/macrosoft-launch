@@ -62,7 +62,7 @@ public class Bootstrapper {
 		this.workingDir = workingDir;
 		
 		int frameHeight = 130;
-		String websiteLink = "https://webmacrosoft.herokuapp.com/";
+		String websiteLink = "http://www.macrosoft.website/";
 		String discordLink = "https://discord.gg/t7WcjJ4";
 		int version = Integer.MAX_VALUE;
 		String downloadLink = websiteLink;
@@ -71,7 +71,7 @@ public class Bootstrapper {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		try {
-			JSONObject info = Connector.get("https://webmacrosoft.herokuapp.com/launcher/info?format=json");
+			JSONObject info = Connector.get("http://www.macrosoft.website/launcher/info?format=json");
 			version = (int)info.get("version");
 			frameHeight = (int)info.get("menuHeight");
 			websiteLink = (String)info.get("site");
