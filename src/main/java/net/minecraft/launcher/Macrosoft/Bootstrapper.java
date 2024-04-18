@@ -69,7 +69,9 @@ public class Bootstrapper {
 		
 		frame = new JFrame("Macrosoft Launcher v" + LauncherConstants.MACROSOFT_VERSION);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		
+
+		Color buttonBg = new Color(170, 160, 157);
+
 		try {
 			JSONObject info = Connector.get("http://www.macrosoft.website/launcher/info?format=json");
 			version = (int)info.get("version");
@@ -92,6 +94,7 @@ public class Bootstrapper {
 				String linkModPack = (String)((JSONObject)object).get("modpack_zip");
 				String authorModpack = (String)((JSONObject)object).get("modpack_author");
 				JButton button = new JButton(name);
+				button.setBackground(buttonBg);
 				
 				modpackLinks.put(name, linkModPack);
 				modpackAuthors.put(name, authorModpack);
@@ -106,6 +109,13 @@ public class Bootstrapper {
 			        }
 				} catch (IOException e) {
 					System.out.println("Unable to load icon from " + iconURL);
+
+					BufferedImage image = ImageIO.read(this.getClass().getResource("/mc.png"));
+					if (image != null) {
+						Image resized = new ImageIcon(image).getImage().getScaledInstance(15, 15, java.awt.Image.SCALE_SMOOTH);
+						button.setIcon(new ImageIcon(resized));
+					}
+
 				}
 				
 				contexts.add(button);
@@ -138,8 +148,12 @@ public class Bootstrapper {
 	
 		panel = new JPanel();
 
+		Color backgroundColor = new Color(22, 13, 28);
+		panel.setBackground(backgroundColor);
+
 		JButton defaultButton = new JButton("Other");
-		
+		defaultButton.setBackground(buttonBg);
+
 		try {
 			//InputStream stream = JButton.class.getResourceAsStream("/minecraft_logo.png");
 			BufferedImage image = ImageIO.read(this.getClass().getResource("/minecraft_logo.png"));
@@ -169,6 +183,7 @@ public class Bootstrapper {
 		}
 		
 		JButton link = new JButton("Website");
+		link.setBackground(buttonBg);
 		link.setBorderPainted(false);
 		
 		String site = websiteLink;
@@ -203,6 +218,7 @@ public class Bootstrapper {
 		
 		JButton linkSocial = new JButton("Discord");
 		linkSocial.setBorderPainted(false);
+		linkSocial.setBackground(buttonBg);
 		
 		linkSocial.addActionListener(new ActionListener() {
 		    public void actionPerformed(ActionEvent e) {

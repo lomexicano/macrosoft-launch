@@ -8,6 +8,8 @@ import com.mojang.launcher.OperatingSystem;
 import com.mojang.launcher.events.GameOutputLogProcessor;
 import com.mojang.launcher.game.process.GameProcess;
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -53,6 +55,7 @@ public class GameProcessBuilder {
     }
 
     public File getDirectory() {
+    	System.out.println(this.directory);
         return this.directory;
     }
 
@@ -71,7 +74,13 @@ public class GameProcessBuilder {
     }
 
     protected String getProcessPath() {
-        return this.processPath;
+        Path javaPath = Paths.get(this.processPath).toAbsolutePath().normalize();
+        if (!javaPath.isAbsolute()) {
+            Path currentDir = Paths.get("").toAbsolutePath();
+            javaPath = currentDir.resolve(this.processPath).normalize();
+        }
+
+        return javaPath.toString();
     }
 
     public GameOutputLogProcessor getLogProcessor() {

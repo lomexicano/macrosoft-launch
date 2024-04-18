@@ -1,5 +1,6 @@
 package net.minecraft.launcher.ui;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,8 +31,11 @@ public class MacrosoftInit extends JFrame {
 		
 		JPanel panel = new JPanel();
 		JLabel msg = new JLabel("Initializing Macrosoft Launcher");
+		msg.setForeground(new Color(1, 131, 129));
 		panel.add(msg);
 		this.add(panel);
+		Color backgroundColor = new Color(22, 13, 28);
+		panel.setBackground(backgroundColor);
 		
 		this.setVisible(true);
 		this.setLocationRelativeTo(null);

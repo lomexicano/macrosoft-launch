@@ -15,18 +15,18 @@ import org.apache.commons.io.IOUtils;
 
 public class LauncherConstants {
     public static final int VERSION_FORMAT = 21;
-    public static final String VERSION_STRING = "3";
-    public static final int MACROSOFT_VERSION = 4;
+    public static final String VERSION_STRING = "6";
+    public static final int MACROSOFT_VERSION = 6;
     public static final int PROFILES_FORMAT = 1;
     public static final URI URL_REGISTER = LauncherConstants.constantURI("https://account.mojang.com/register");
     public static final String URL_JAR_FALLBACK = "https://s3.amazonaws.com/Minecraft.Download/";
-    public static final String URL_RESOURCE_BASE = "http://resources.download.minecraft.net/";
+    public static final String URL_RESOURCE_BASE = "https://resources.download.minecraft.net/";
     public static final String URL_LIBRARY_BASE = "https://libraries.minecraft.net/";
     //public static final String URL_WEBSITE = "http://mcupdate.tumblr.com"; // The old legacy blog (no longer updated)
     //public static final String URL_WEBSITE = "http://mclaunch.github.io/mcupdate";
-    public static final String URL_WEBSITE = "http://www.macrosoft.website/launcher";
-    public static final String URL_SUPPORT = "http://help.mojang.com/?ref=launcher";
-    public static final String URL_STATUS_CHECKER = "http://status.mojang.com/check";
+    public static final String URL_WEBSITE = "https://www.macrosoft.website/launcher";
+    public static final String URL_SUPPORT = "https://help.mojang.com/?ref=launcher";
+    public static final String URL_STATUS_CHECKER = "https://status.mojang.com/check";
     public static final int UNVERSIONED_BOOTSTRAP_VERSION = 0;
     public static final int MINIMUM_BOOTSTRAP_SUPPORTED = 4;
     public static final int SUPER_COOL_BOOTSTRAP_VERSION = 100;
@@ -36,9 +36,9 @@ public class LauncherConstants {
     public static final String[] LAUNCHER_OUT_OF_DATE_BUTTONS = new String[]{"Nevermind, close this launcher", "I'm sure. Reset my settings."};
     public static final String LAUNCHER_NOT_NATIVE_MESSAGE = "This shortcut to the launcher is out of date. Please delete it and remake it to the new launcher, which we will start for you now.";
     public static final String[] CONFIRM_PROFILE_DELETION_OPTIONS = new String[]{"Delete profile", "Cancel"};
-    public static final URI URL_FORGOT_USERNAME = LauncherConstants.constantURI("http://help.mojang.com/customer/portal/articles/1233873?ref=launcher");
-    public static final URI URL_FORGOT_PASSWORD_MINECRAFT = LauncherConstants.constantURI("http://help.mojang.com/customer/portal/articles/329524-change-or-forgot-password?ref=launcher");
-    public static final URI URL_FORGOT_MIGRATED_EMAIL = LauncherConstants.constantURI("http://help.mojang.com/customer/portal/articles/1205055-minecraft-launcher-error---migrated-account?ref=launcher");
+    public static final URI URL_FORGOT_USERNAME = LauncherConstants.constantURI("https://help.mojang.com/customer/portal/articles/1233873?ref=launcher");
+    public static final URI URL_FORGOT_PASSWORD_MINECRAFT = LauncherConstants.constantURI("https://help.mojang.com/customer/portal/articles/329524-change-or-forgot-password?ref=launcher");
+    public static final URI URL_FORGOT_MIGRATED_EMAIL = LauncherConstants.constantURI("https://help.mojang.com/customer/portal/articles/1205055-minecraft-launcher-error---migrated-account?ref=launcher");
     public static final URI URL_DEMO_HELP = LauncherConstants.constantURI("https://help.mojang.com/customer/portal/articles/1218766-can-only-play-minecraft-demo?ref=launcher");
     public static final URI URL_UPGRADE_WINDOWS = LauncherConstants.constantURI("https://launcher.mojang.com/download/MinecraftInstaller.msi");
     public static final URI URL_UPGRADE_OSX = LauncherConstants.constantURI("https://launcher.mojang.com/download/Minecraft.dmg");

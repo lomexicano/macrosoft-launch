@@ -6,6 +6,8 @@ import com.mojang.launcher.updater.VersionFilter;
 import com.mojang.launcher.versions.ReleaseType;
 import com.mojang.launcher.versions.ReleaseTypeFactory;
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Set;
 import net.minecraft.launcher.game.MinecraftReleaseType;
 import net.minecraft.launcher.game.MinecraftReleaseTypeFactory;
@@ -70,7 +72,7 @@ implements Comparable<Profile> {
     }
 
     public void setJavaDir(String javaDir) {
-        this.javaDir = javaDir;
+    	this.javaDir = javaDir;
     }
 
     public void setJavaArgs(String javaArgs) {
