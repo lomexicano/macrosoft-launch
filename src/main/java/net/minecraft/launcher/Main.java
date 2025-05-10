@@ -38,7 +38,7 @@ public class Main {
 
     public static void main(String[] args) {
     	
-    	MacrosoftInit initPanel = new MacrosoftInit("Welcome ^.^");
+    	MacrosoftInit initPanel = new MacrosoftInit("Welcome ♥️");
     	
     	ActionListener onLoad = new ActionListener () {
 	      public void actionPerformed(ActionEvent e)

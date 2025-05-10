@@ -2,8 +2,13 @@ package net.minecraft.launcher.Macrosoft;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.Image;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
@@ -17,267 +22,366 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
-import javax.swing.Icon;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JSeparator;
+import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
-import javax.swing.text.AttributeSet.ColorAttribute;
-import javax.swing.text.StyleConstants.ColorConstants;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 
-import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.json.JSONString;
-
-import com.google.gson.JsonArray;
 
 import net.minecraft.launcher.LauncherConstants;
-import net.minecraft.launcher.Macrosoft.ui.LaunchButton;
-import net.minecraft.launcher.ui.popups.login.LogInPopup;
 
 public class Bootstrapper {
 
-	JFrame frame;
-	JPanel panel;
-	JButton b1;
-	File workingDir;
-	ArrayList<JButton> contexts = new ArrayList<JButton>();
-	Map<String, String> modpackLinks = new HashMap<String, String>();
-	Map<String, String> modpackAuthors = new HashMap<String, String>();
-	
-	public Bootstrapper(File workingDir) {
-		
-		boolean javaVersionOK = System.getProperty("java.runtime.version").matches("^1\\.8\\..*");
-	
-		System.out.println("Loading Macrosoft Bootstrapper...");
-		
-		System.out.println("Is Java " + System.getProperty("java.runtime.version") + " supported? " + javaVersionOK+ " (it requires java 1.8.x)");
-		
-		this.workingDir = workingDir;
-		
-		int frameHeight = 130;
-		String websiteLink = "http://www.macrosoft.website/";
-		String discordLink = "https://discord.gg/t7WcjJ4";
-		int version = Integer.MAX_VALUE;
-		String downloadLink = websiteLink;
-		
-		frame = new JFrame("Macrosoft Launcher v" + LauncherConstants.MACROSOFT_VERSION);
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    JFrame frame;
+    File workingDir;
+    ArrayList<JButton> contexts = new ArrayList<>();
+    Map<String, String> modpackLinks = new HashMap<>();
+    Map<String, String> modpackAuthors = new HashMap<>();
 
-		Color buttonBg = new Color(170, 160, 157);
+    private static final Color COLOR_BACKGROUND = new Color(22, 13, 28);
+    private static final Color COLOR_BUTTON_BG = new Color(60, 60, 60);
+    private static final Color COLOR_BUTTON_FG = Color.WHITE;
+    private static final Color COLOR_LINK_BUTTON_FG = new Color(135, 206, 250);
+    private static final Color COLOR_DOWNLOAD_BUTTON_BG = new Color(76, 175, 80);
+    private static final Color COLOR_DOWNLOAD_BUTTON_FG = Color.WHITE;
+    private static final int ICON_SIZE = 20;
 
-		try {
-			JSONObject info = Connector.get("http://www.macrosoft.website/launcher/info?format=json");
-			version = (int)info.get("version");
-			frameHeight = (int)info.get("menuHeight");
-			websiteLink = (String)info.get("site");
-			downloadLink = websiteLink;
-			discordLink = (String)info.get("discord");
-			
-			try {
-				downloadLink = (String)info.get("download");
-			} catch (Exception e) {
-				// TODO: handle exception
-			}
-			
-			JSONArray servers = (JSONArray)info.get("servers");
-			
-			for (Object object : servers) {
-							
-				String name = (String)((JSONObject)object).get("name");
-				String linkModPack = (String)((JSONObject)object).get("modpack_zip");
-				String authorModpack = (String)((JSONObject)object).get("modpack_author");
-				JButton button = new JButton(name);
-				button.setBackground(buttonBg);
-				
-				modpackLinks.put(name, linkModPack);
-				modpackAuthors.put(name, authorModpack);
-				
-				String iconURL = (String)((JSONObject)object).get("icon");
-				try {
-					InputStream stream = new URL(iconURL).openStream();
-			        if (stream != null) {
-			            BufferedImage image = ImageIO.read(stream);
-			            Image resized = new ImageIcon(image).getImage().getScaledInstance(15, 15, java.awt.Image.SCALE_SMOOTH);
-			            button.setIcon(new ImageIcon(resized));
-			        }
-				} catch (IOException e) {
-					System.out.println("Unable to load icon from " + iconURL);
+    // Lista de URLs para buscar informações do launcher. A primeira é a principal.
+    private static final String[] API_INFO_URLS = {
+        "https://www.macrosoft.website/launcher/info?format=json", // URL principal
+        "http://macrosoft.website/launcher/info?format=json",
+        // Adicione URLs de fallback aqui, se houver:
+        // "http://backup1.macrosoft.website/launcher/info?format=json",
+        // "http://backup2.anotherdomain.com/launcher/info?format=json"
+    };
 
-					BufferedImage image = ImageIO.read(this.getClass().getResource("/mc.png"));
-					if (image != null) {
-						Image resized = new ImageIcon(image).getImage().getScaledInstance(15, 15, java.awt.Image.SCALE_SMOOTH);
-						button.setIcon(new ImageIcon(resized));
-					}
+    public Bootstrapper(File workingDir) {
+        try {
+            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException e) {
+            System.err.println("Nimbus L&F not found, using default. " + e.getMessage());
+        }
 
-				}
-				
-				contexts.add(button);
-			}
-		
-			
-			if (!javaVersionOK) {
-				JOptionPane.showMessageDialog(frame, "Your Java version is " + System.getProperty("java.runtime.version") + ". It's not fully supported! Please install Java version 1.8.x", "Java version not fully supported", JOptionPane.WARNING_MESSAGE);
-				
-				try {
-					
-				} catch (Exception e) {
-					// TODO: handle exception
-				}
-			}
-			
-			if (version > LauncherConstants.MACROSOFT_VERSION) {
-				JOptionPane.showMessageDialog(frame, "Your launcher is out-dated. Upgrade to version " + version + ". Access our website or Discord channel", "Outdated", JOptionPane.WARNING_MESSAGE);
-			}
-			
-		} catch(IOException e) {
-			e.printStackTrace();
-			JOptionPane.showMessageDialog(frame, "Could not stablish connection with Macrosoft Server", "Error connection", JOptionPane.ERROR_MESSAGE);
-		} catch (JSONException e) {
-			e.printStackTrace();
-			JOptionPane.showMessageDialog(frame, "Could not parse response from Macrosoft Server", "Server issue", JOptionPane.ERROR_MESSAGE);
-		}
-		
-		frame.setSize(new Dimension(350,frameHeight));
-	
-		panel = new JPanel();
+        boolean javaVersionOK = System.getProperty("java.runtime.version").matches("^1\\.8\\..*");
 
-		Color backgroundColor = new Color(22, 13, 28);
-		panel.setBackground(backgroundColor);
+        System.out.println("Loading Macrosoft Bootstrapper...");
+        System.out.println("Is Java " + System.getProperty("java.runtime.version") + " supported? " + javaVersionOK + " (it requires java 1.8.x)");
 
-		JButton defaultButton = new JButton("Other");
-		defaultButton.setBackground(buttonBg);
+        this.workingDir = workingDir;
 
-		try {
-			//InputStream stream = JButton.class.getResourceAsStream("/minecraft_logo.png");
-			BufferedImage image = ImageIO.read(this.getClass().getResource("/minecraft_logo.png"));
-	        if (image != null) {
-	            JLabel label = new JLabel(new ImageIcon(image));
-                panel.add(label);
-	        }
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		try {
-			//InputStream stream = JButton.class.getResourceAsStream("/mc.png");
-			BufferedImage image = ImageIO.read(this.getClass().getResource("/mc.png"));
-	        if (image != null) {
-	            Image resized = new ImageIcon(image).getImage().getScaledInstance(15, 15, java.awt.Image.SCALE_SMOOTH);
-	            defaultButton.setIcon(new ImageIcon(resized));
-	        }
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-					
-		contexts.add(defaultButton);
-		
-		for (JButton jButton : contexts) {
-			panel.add(jButton);
-		}
-		
-		JButton link = new JButton("Website");
-		link.setBackground(buttonBg);
-		link.setBorderPainted(false);
-		
-		String site = websiteLink;
-		String discord = discordLink;	
-		
-		if (version > LauncherConstants.MACROSOFT_VERSION) {
-			JButton linkDownload = new JButton("Download latest version");
-			linkDownload.setBackground(Color.GREEN);
-			String linkToDownload = downloadLink;
-			linkDownload.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					try {
-						java.awt.Desktop.getDesktop().browse(java.net.URI.create(linkToDownload));
-					} catch (IOException ex) {
-						ex.printStackTrace();
-					}
-				}
-			});
-			panel.add(linkDownload);	
-		}
-		
-		link.addActionListener(new ActionListener() {
-		    public void actionPerformed(ActionEvent e) {
-		    	try {
-		    		java.awt.Desktop.getDesktop().browse(java.net.URI.create(site));
-		    	} catch (IOException ex) {
-		    		ex.printStackTrace();
-		    	}
-	        }
-		});
-		panel.add(link);
-		
-		JButton linkSocial = new JButton("Discord");
-		linkSocial.setBorderPainted(false);
-		linkSocial.setBackground(buttonBg);
-		
-		linkSocial.addActionListener(new ActionListener() {
-		    public void actionPerformed(ActionEvent e) {
-		    	try {
-		    		java.awt.Desktop.getDesktop().browse(java.net.URI.create(discord));
-		    	} catch (IOException ex) {
-		    		ex.printStackTrace();
-		    	}
-	        }
-		});
-		panel.add(linkSocial);
-		
-		try {
-			//InputStream stream = JButton.class.getResourceAsStream("/favicon.png");
-			BufferedImage image = ImageIO.read(this.getClass().getResource("/favicon.png"));
-	        if (image != null) {
-	            frame.setIconImage(image);
-	        }
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		frame.setLocationRelativeTo(null);
-		frame.add(panel);
-		
-	}
-	
-	public void run(ActionListener onload, ActionListener listener) {
-		
-		for (JButton jButton : contexts) {
-			jButton.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					frame.setVisible(false);
-					
-					String context = ((JButton)e.getSource()).getText();
-					
-					String resourceLink = modpackLinks.get(context);
-					String authorModPack = modpackAuthors.get(context);	
-					
-					File contextDir = new File(workingDir, context + "/");
-					if((!contextDir.exists()) && (resourceLink != null) && (!resourceLink.isEmpty())) {
-						System.out.println("Downloading modpack...");
-						new Downloader(resourceLink, contextDir, "Downloading " + context + " modpack by <i>" + authorModPack + "</i>...", listener, e);
-						frame.dispose();
-					} else {
-						if((resourceLink != null) && (resourceLink.isEmpty())) {
-							System.out.println("No modpack source defined");
-						}
-						System.out.println("Modpack download skipped");
-						listener.actionPerformed(e);
-					}
-					
-				}
-			});
-		}
-		
-		onload.actionPerformed(null);
-	
-		frame.setVisible(true);
-	}
+        // Valores padrão que podem ser sobrescritos pela API
+        int apiLauncherVersion = LauncherConstants.MACROSOFT_VERSION; // Assume a versão atual até que a API informe outra
+        int frameHeight = 130; // Altura padrão do menu
+        String websiteLink = "https://www.macrosoft.website/"; // Link padrão do site
+        String discordLink = "https://discord.gg/t7WcjJ4"; // Link padrão do Discord
+        String downloadLinkForUpdate = websiteLink; // Link padrão para download de nova versão (inicialmente o site)
 
-} 
+        frame = new JFrame("Macrosoft Launcher v" + LauncherConstants.MACROSOFT_VERSION);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        JPanel contentPanel = new JPanel(new BorderLayout(10, 10));
+        contentPanel.setBackground(COLOR_BACKGROUND);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JPanel modpackButtonContainer = new JPanel();
+        modpackButtonContainer.setLayout(new BoxLayout(modpackButtonContainer, BoxLayout.Y_AXIS));
+        modpackButtonContainer.setBackground(COLOR_BACKGROUND);
+
+        JSONObject infoFromApi = null;
+        boolean apiInfoLoadedSuccessfully = false;
+
+        for (String apiUrl : API_INFO_URLS) {
+            try {
+                System.out.println("Tentando carregar informações da API de: " + apiUrl);
+                infoFromApi = Connector.get(apiUrl); // Tenta obter o JSONObject
+                apiInfoLoadedSuccessfully = true;
+                System.out.println("Informações carregadas com sucesso de: " + apiUrl);
+                break; // Sai do loop, pois encontramos uma URL funcional
+            } catch (IOException e) {
+                System.err.println("Falha ao conectar com API em " + apiUrl + ": " + e.getMessage());
+                // Continua para a próxima URL da lista
+            } catch (JSONException e) {
+                System.err.println("Falha ao parsear JSON da API em " + apiUrl + ": " + e.getMessage() + ". A resposta pode não ser um JSON válido.");
+                infoFromApi = null; // Descarta JSON potencialmente inválido ou parcial
+                // Continua para a próxima URL da lista
+            }
+        }
+
+        if (apiInfoLoadedSuccessfully && infoFromApi != null) {
+            try {
+                // Extrai informações do JSON obtido
+                apiLauncherVersion = infoFromApi.getInt("version");
+                frameHeight = infoFromApi.getInt("menuHeight");
+                websiteLink = infoFromApi.getString("site"); // Sobrescreve o padrão
+                discordLink = infoFromApi.getString("discord"); // Sobrescreve o padrão
+                
+                // Tenta obter o link de download específico, senão usa o link do site
+                try {
+                    downloadLinkForUpdate = infoFromApi.getString("download");
+                } catch (JSONException e) {
+                    System.err.println("Campo 'download' (link para nova versão) não encontrado na API. Usando o link do site como fallback.");
+                    downloadLinkForUpdate = websiteLink; // Fallback
+                }
+
+                JSONArray servers = infoFromApi.getJSONArray("servers");
+                for (Object object : servers) {
+                    JSONObject serverJson = (JSONObject) object;
+                    String name = serverJson.getString("name");
+                    String linkModPack = serverJson.getString("modpack_zip");
+                    String authorModpack = serverJson.getString("modpack_author");
+
+                    JButton button = createStyledModpackButton(name);
+                    modpackLinks.put(name, linkModPack);
+                    modpackAuthors.put(name, authorModpack);
+
+                    String iconURL = serverJson.getString("icon");
+                    try (InputStream stream = new URL(iconURL).openStream()) { // try-with-resources
+                        BufferedImage image = ImageIO.read(stream);
+                        if (image != null) {
+                            Image resized = image.getScaledInstance(ICON_SIZE, ICON_SIZE, Image.SCALE_SMOOTH);
+                            button.setIcon(new ImageIcon(resized));
+                        }
+                    } catch (IOException e) {
+                        System.out.println("Não foi possível carregar o ícone de " + iconURL + ". Usando fallback.");
+                        loadFallbackIcon(button, "/mc.png");
+                    }
+                    contexts.add(button);
+                    modpackButtonContainer.add(button);
+                    modpackButtonContainer.add(Box.createRigidArea(new Dimension(0, 5)));
+                }
+            } catch (JSONException e) {
+                // Se o JSON foi obtido mas tem estrutura inválida para os campos esperados
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(frame, "Erro ao processar dados do servidor (formato inesperado).\nO launcher usará configurações padrão.", "Erro de Dados da API", JOptionPane.ERROR_MESSAGE);
+                apiInfoLoadedSuccessfully = false; // Marca como falha para o restante da lógica
+            }
+        } else {
+            System.err.println("Falha ao carregar informações de todas as URLs da API disponíveis.");
+            JOptionPane.showMessageDialog(frame,
+                    "Não foi possível conectar aos servidores Macrosoft para obter informações atualizadas.\n" +
+                    "O launcher usará configurações padrão e pode ter funcionalidades online limitadas.",
+                    "Servidores Indisponíveis", JOptionPane.WARNING_MESSAGE);
+            // Valores padrão definidos no início do construtor serão usados.
+            // Nenhum modpack da API será carregado nesta seção.
+        }
+
+        // Aviso de versão do Java (independente da API)
+        if (!javaVersionOK) {
+            JOptionPane.showMessageDialog(frame,
+                    "Sua versão do Java (" + System.getProperty("java.runtime.version") +
+                            ") não é totalmente suportada!\nPor favor, instale a versão Java 1.8.x para compatibilidade ótima.",
+                    "Versão do Java Não Suportada", JOptionPane.WARNING_MESSAGE);
+        }
+
+        boolean newVersionAvailable = false;
+        // Aviso de launcher desatualizado (somente se a API foi carregada com sucesso)
+        if (apiInfoLoadedSuccessfully && apiLauncherVersion > LauncherConstants.MACROSOFT_VERSION) {
+            newVersionAvailable = true;
+            JOptionPane.showMessageDialog(frame,
+                    "Seu launcher está desatualizado. Por favor, atualize para a versão " + apiLauncherVersion + ".\n" +
+                    "Acesse nosso site ou canal do Discord para obter a versão mais recente.",
+                    "Launcher Desatualizado", JOptionPane.WARNING_MESSAGE);
+        }
+
+        // ----- Construção da UI -----
+        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        headerPanel.setBackground(COLOR_BACKGROUND);
+        try {
+            BufferedImage image = ImageIO.read(this.getClass().getResource("/minecraft_logo.png"));
+            if (image != null) {
+                JLabel logoLabel = new JLabel(new ImageIcon(image));
+                headerPanel.add(logoLabel);
+            }
+        } catch (IOException | NullPointerException e) {
+            System.err.println("Falha ao carregar /minecraft_logo.png: " + e.getMessage());
+            headerPanel.add(new JLabel("Minecraft Logo"));
+        }
+        contentPanel.add(headerPanel, BorderLayout.NORTH);
+
+        JButton defaultButton = createStyledModpackButton("Other");
+        loadFallbackIcon(defaultButton, "/mc.png");
+        contexts.add(defaultButton);
+        modpackButtonContainer.add(defaultButton); // Adiciona "Other" mesmo se API falhar
+
+        JScrollPane modpackScrollPane = new JScrollPane(modpackButtonContainer);
+        modpackScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        modpackScrollPane.getViewport().setBackground(COLOR_BACKGROUND);
+        modpackScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        modpackScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        contentPanel.add(modpackScrollPane, BorderLayout.CENTER);
+
+        JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        footerPanel.setBackground(COLOR_BACKGROUND);
+
+        // Botão para baixar nova versão (somente se disponível e API carregada)
+        if (newVersionAvailable) {
+            JButton downloadLatestButton = new JButton("Baixar v" + apiLauncherVersion);
+            styleLinkButton(downloadLatestButton, true);
+            downloadLatestButton.setBackground(COLOR_DOWNLOAD_BUTTON_BG);
+            downloadLatestButton.setForeground(COLOR_DOWNLOAD_BUTTON_FG);
+            // Usa o link de download da API, ou o link do site como fallback
+            final String linkParaBaixar = (downloadLinkForUpdate != null && !downloadLinkForUpdate.isEmpty()) ? downloadLinkForUpdate : websiteLink;
+            downloadLatestButton.addActionListener(e -> openLink(linkParaBaixar));
+            footerPanel.add(downloadLatestButton);
+        }
+
+        // Botões de Website e Discord (usam 'websiteLink' e 'discordLink' que podem ter vindo da API ou são padrão)
+        JButton websiteButton = new JButton("Website");
+        styleLinkButton(websiteButton, false);
+        final String finalWebsiteLink = websiteLink;
+        websiteButton.addActionListener(e -> openLink(finalWebsiteLink));
+        footerPanel.add(websiteButton);
+
+        JButton discordButton = new JButton("Discord");
+        styleLinkButton(discordButton, false);
+        final String finalDiscordLink = discordLink;
+        discordButton.addActionListener(e -> openLink(finalDiscordLink));
+        footerPanel.add(discordButton);
+
+        contentPanel.add(footerPanel, BorderLayout.SOUTH);
+
+        try {
+            BufferedImage image = ImageIO.read(this.getClass().getResource("/favicon.png"));
+            if (image != null) {
+                frame.setIconImage(image);
+            }
+        } catch (IOException | NullPointerException e) {
+            System.err.println("Falha ao carregar /favicon.png para ícone do frame: " + e.getMessage());
+        }
+        
+        frame.setContentPane(contentPanel);
+        // Usa frameHeight que pode ter sido atualizado pela API ou é o padrão
+        frame.setSize(new Dimension(380, Math.max(frameHeight, 400))); 
+        frame.setMinimumSize(new Dimension(380, 300));
+        frame.setLocationRelativeTo(null);
+    }
+
+    // ... métodos createStyledModpackButton, loadFallbackIcon, styleLinkButton, openLink, run, isDirectoryEmpty ...
+    // (Estes métodos permanecem os mesmos da sua versão anterior)
+    private JButton createStyledModpackButton(String text) {
+        JButton button = new JButton(text);
+        button.setBackground(COLOR_BUTTON_BG);
+        button.setForeground(COLOR_BUTTON_FG);
+        button.setFont(new Font("SansSerif", Font.BOLD, 13));
+        button.setMargin(new Insets(8, 15, 8, 15)); // Padding inside button
+        button.setHorizontalAlignment(SwingConstants.LEFT); // Align text to left if icon is present
+        button.setIconTextGap(10); // Gap between icon and text
+        button.setFocusPainted(false);
+        button.setAlignmentX(Component.CENTER_ALIGNMENT); 
+        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, button.getPreferredSize().height + 10)); // Altura um pouco maior para clique
+        return button;
+    }
+
+    private void loadFallbackIcon(JButton button, String resourcePath) {
+        try {
+            BufferedImage image = ImageIO.read(this.getClass().getResource(resourcePath));
+            if (image != null) {
+                Image resized = image.getScaledInstance(ICON_SIZE, ICON_SIZE, Image.SCALE_SMOOTH);
+                button.setIcon(new ImageIcon(resized));
+            }
+        } catch (IOException | NullPointerException e) { // Captura NullPointerException se getResource falhar
+            System.err.println("Falha ao carregar ícone de fallback " + resourcePath + ": " + e.getMessage());
+        }
+    }
+
+    private void styleLinkButton(JButton button, boolean prominent) {
+        button.setFont(new Font("SansSerif", prominent ? Font.BOLD : Font.PLAIN, 12));
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        if (prominent) {
+            button.setOpaque(true); 
+            // Cor de fundo e texto já definidas para o botão de download
+        } else {
+            button.setContentAreaFilled(false);
+            button.setForeground(COLOR_LINK_BUTTON_FG);
+        }
+        button.setMargin(new Insets(5,10,5,10));
+    }
+
+    private void openLink(String url) {
+        try {
+            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                java.awt.Desktop.getDesktop().browse(new URI(url));
+            } else {
+                JOptionPane.showMessageDialog(frame, "Não é possível abrir o link: operações de Desktop não suportadas.", "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(frame, "Erro ao abrir link: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public void run(ActionListener onload, ActionListener listener) {
+        for (JButton jButton : contexts) {
+            jButton.addActionListener(e -> {
+                frame.setVisible(false); 
+
+                String context = ((JButton) e.getSource()).getText();
+                String resourceLink = modpackLinks.get(context);
+                String authorModPack = modpackAuthors.get(context);
+
+                File contextDir = new File(workingDir, context + File.separator);
+                boolean downloadRequired = (!contextDir.exists() || isDirectoryEmpty(contextDir)) && (resourceLink != null && !resourceLink.isEmpty());
+
+                if (downloadRequired) {
+                    System.out.println("Baixando modpack para: " + context);
+                    if (!contextDir.mkdirs() && !contextDir.exists()) { // Garante que mkdris não falhou e o diretório realmente não existe
+                         System.err.println("Não foi possível criar o diretório: " + contextDir.getAbsolutePath());
+                         JOptionPane.showMessageDialog(null, "Erro ao criar diretório para " + context, "Erro de Download", JOptionPane.ERROR_MESSAGE);
+                         // Se não puder criar o diretório, não adianta prosseguir com Downloader
+                         // Chama o listener principal, talvez ele lide com o modpack não baixado.
+                         // E garante que o frame do Bootstrapper seja fechado.
+                         listener.actionPerformed(e); 
+                         frame.dispose(); 
+                         return;
+                    }
+                    new Downloader(resourceLink, contextDir,
+                            "Baixando " + context + " modpack por <i>" + authorModPack + "</i>...",
+                            listener, e); 
+                    frame.dispose(); 
+                } else {
+                    if (resourceLink == null || resourceLink.isEmpty()) {
+                        System.out.println("Nenhuma fonte de modpack definida para " + context + ". Verificação de download pulada.");
+                    } else if (contextDir.exists() && !isDirectoryEmpty(contextDir)) {
+                        System.out.println("Modpack " + context + " já existe. Download pulado.");
+                    }
+                    listener.actionPerformed(e); 
+                    // Se o listener não fechar este frame, ele permanecerá oculto.
+                    // Se necessário, adicionar frame.dispose(); aqui também se o listener não o fizer.
+                }
+            });
+        }
+
+        if (onload != null) {
+            onload.actionPerformed(null);
+        }
+
+        frame.setVisible(true);
+    }
+    
+    private boolean isDirectoryEmpty(File directory) {
+        if (directory.exists() && directory.isDirectory()) {
+            String[] files = directory.list();
+            return files == null || files.length == 0;
+        }
+        return true; 
+    }
+}

@@ -15,8 +15,8 @@ import org.apache.commons.io.IOUtils;
 
 public class LauncherConstants {
     public static final int VERSION_FORMAT = 21;
-    public static final String VERSION_STRING = "6";
-    public static final int MACROSOFT_VERSION = 6;
+    public static final String VERSION_STRING = "7";
+    public static final int MACROSOFT_VERSION = 7;
     public static final int PROFILES_FORMAT = 1;
     public static final URI URL_REGISTER = LauncherConstants.constantURI("https://account.mojang.com/register");
     public static final String URL_JAR_FALLBACK = "https://s3.amazonaws.com/Minecraft.Download/";
