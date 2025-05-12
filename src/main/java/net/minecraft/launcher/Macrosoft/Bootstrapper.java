@@ -183,12 +183,13 @@ public class Bootstrapper {
         }
 
         // Aviso de versão do Java (independente da API)
+        /*
         if (!javaVersionOK) {
             JOptionPane.showMessageDialog(frame,
                     "Sua versão do Java (" + System.getProperty("java.runtime.version") +
                             ") não é totalmente suportada!\nPor favor, instale a versão Java 1.8.x para compatibilidade ótima.",
                     "Versão do Java Não Suportada", JOptionPane.WARNING_MESSAGE);
-        }
+        }*/
 
         boolean newVersionAvailable = false;
         // Aviso de launcher desatualizado (somente se a API foi carregada com sucesso)
