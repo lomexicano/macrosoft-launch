@@ -200,8 +200,70 @@ implements GameProcessRunnable {
         processBuilder.withArguments(this.getVersion().getMainClass());
         LOGGER.info("Half command: " + StringUtils.join(processBuilder.getFullCommands(), " "));
         this.getVersion().addArguments(ArgumentType.GAME, featureMatcher, processBuilder, argumentsSubstitutor);
-        Proxy proxy = this.getLauncher().getProxy();
-        PasswordAuthentication proxyAuth = this.getLauncher().getProxyAuth();
+        Proxy proxyToUse = this.getLauncher().getProxy();
+        PasswordAuthentication proxyAuthToUse = this.getLauncher().getProxyAuth();
+        
+        if (selectedProfile.isProxyEnabled() && selectedProfile.getProxyType() != Profile.ProxyType.NONE) {
+            LOGGER.info("Using profile-specific proxy settings for profile: " + selectedProfile.getName());
+            String host = selectedProfile.getProxyHost();
+            int port = selectedProfile.getProxyPort();
+
+            if (host != null && !host.isEmpty() && port > 0) {
+                Proxy.Type type = selectedProfile.getProxyType() == Profile.ProxyType.SOCKS ? Proxy.Type.SOCKS : Proxy.Type.HTTP;
+                proxyToUse = new Proxy(type, new InetSocketAddress(host, port));
+
+                String user = selectedProfile.getProxyUser();
+                String pass = selectedProfile.getProxyPassword();
+                if (user != null && !user.isEmpty() && pass != null) { // Não verifica se pass está vazio, pode ser intencional
+                    final String finalUser = user; // Necessário para a classe anônima
+                    final char[] finalPass = pass.toCharArray();
+                    proxyAuthToUse = new PasswordAuthentication(finalUser, finalPass);
+                    // Se usando java.net.Authenticator
+                    // Authenticator.setDefault(new Authenticator() {
+                    // protected PasswordAuthentication getPasswordAuthentication() {
+                    // return new PasswordAuthentication(finalUser, finalPass);
+                    // }
+                    // });
+                } else {
+                    proxyAuthToUse = null; // Limpa auth global se não houver auth específico do perfil
+                    // Authenticator.setDefault(null);
+                }
+
+                // Adicionar argumentos JVM para proxy (Java usa propriedades de sistema)
+                // Estes são mais confiáveis para que o Java interno e bibliotecas os utilizem.
+                String proxyTypeStr = selectedProfile.getProxyType().name().toLowerCase(); // "http" ou "socks"
+                processBuilder.withArguments("-D" + proxyTypeStr + ".proxyHost=" + host);
+                processBuilder.withArguments("-D" + proxyTypeStr + ".proxyPort=" + String.valueOf(port));
+                if (user != null && !user.isEmpty()) {
+                    processBuilder.withArguments("-D" + proxyTypeStr + ".proxyUser=" + user);
+                    if (pass != null) { // Não necessariamente precisa de senha para ter usuário
+                         processBuilder.withArguments("-D" + proxyTypeStr + ".proxyPassword=" + pass);
+                    }
+                }
+
+            } else {
+                LOGGER.warn("Profile proxy enabled but host or port is invalid. Falling back to global launcher proxy if any.");
+                // Mantém proxyToUse e proxyAuthToUse como os globais (ou Proxy.NO_PROXY se não houver global)
+                // Para evitar que os argumentos --proxyHost etc. sejam passados com valores inválidos.
+                // No entanto, se os argumentos JVM foram definidos acima com valores inválidos, isso pode ser um problema.
+                // Talvez seja melhor não adicionar os -D se host/port forem inválidos aqui.
+            }
+
+        } else if (proxyToUse != Proxy.NO_PROXY) {
+            LOGGER.info("Using global launcher proxy settings.");
+            // Se o proxy do perfil NÃO estiver habilitado, E o proxy global ESTIVER,
+            // então configure os argumentos --proxyHost para o jogo.
+            // Caso contrário (proxy do perfil habilitado e configurado), os -D já cuidam disso.
+            InetSocketAddress address = (InetSocketAddress) proxyToUse.address();
+            processBuilder.withArguments("--proxyHost", address.getHostName());
+            processBuilder.withArguments("--proxyPort", Integer.toString(address.getPort()));
+            if (proxyAuthToUse != null) {
+                processBuilder.withArguments("--proxyUser", proxyAuthToUse.getUserName());
+                processBuilder.withArguments("--proxyPass", new String(proxyAuthToUse.getPassword()));
+            }
+        }
+        
+        /*
         if (!proxy.equals(Proxy.NO_PROXY)) {
             InetSocketAddress address = (InetSocketAddress)proxy.address();
             processBuilder.withArguments("--proxyHost", address.getHostName());
@@ -210,7 +272,7 @@ implements GameProcessRunnable {
                 processBuilder.withArguments("--proxyUser", proxyAuth.getUserName());
                 processBuilder.withArguments("--proxyPass", new String(proxyAuth.getPassword()));
             }
-        }
+        }*/
         processBuilder.withArguments(this.additionalLaunchArgs);
         try {
             LOGGER.debug("Running " + StringUtils.join(processBuilder.getFullCommands(), " "));

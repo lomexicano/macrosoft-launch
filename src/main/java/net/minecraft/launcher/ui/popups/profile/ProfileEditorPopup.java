@@ -33,6 +33,7 @@ import net.minecraft.launcher.ui.popups.profile.ProfileJavaPanel;
 import net.minecraft.launcher.ui.popups.profile.ProfileVersionPanel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import net.minecraft.launcher.ui.popups.profile.ProfileProxyPanel; // Nova importação
 
 public class ProfileEditorPopup
 extends JPanel
@@ -47,6 +48,7 @@ implements ActionListener {
     private final ProfileInfoPanel profileInfoPanel;
     private final ProfileVersionPanel profileVersionPanel;
     private final ProfileJavaPanel javaInfoPanel;
+    private final ProfileProxyPanel proxyInfoPanel; // Novo Painel
 
     public ProfileEditorPopup(Launcher minecraftLauncher, Profile profile) {
         super(true);
@@ -56,6 +58,7 @@ implements ActionListener {
         this.profileInfoPanel = new ProfileInfoPanel(this);
         this.profileVersionPanel = new ProfileVersionPanel(this);
         this.javaInfoPanel = new ProfileJavaPanel(this);
+        this.proxyInfoPanel = new ProfileProxyPanel(this); // Instanciar o novo painel
         this.saveButton.addActionListener(this);
         this.cancelButton.addActionListener(this);
         this.browseButton.addActionListener(this);
@@ -70,15 +73,16 @@ implements ActionListener {
         standardPanels.add(this.profileInfoPanel);
         standardPanels.add(this.profileVersionPanel);
         standardPanels.add(this.javaInfoPanel);
-        this.add((Component)standardPanels, "Center");
+        standardPanels.add(this.proxyInfoPanel); // Adicionar o painel de proxy
+        this.add(standardPanels, BorderLayout.CENTER);
         JPanel buttonPannel = new JPanel();
-        buttonPannel.setLayout(new BoxLayout(buttonPannel, 0));
+        buttonPannel.setLayout(new BoxLayout(buttonPannel, BoxLayout.X_AXIS));
         buttonPannel.add(this.cancelButton);
         buttonPannel.add(Box.createGlue());
         buttonPannel.add(this.browseButton);
         buttonPannel.add(Box.createHorizontalStrut(5));
         buttonPannel.add(this.saveButton);
-        this.add((Component)buttonPannel, "South");
+        this.add(buttonPannel, BorderLayout.SOUTH);;
     }
 
     @Override

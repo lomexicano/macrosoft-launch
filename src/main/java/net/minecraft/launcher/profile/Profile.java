@@ -1,6 +1,7 @@
 package net.minecraft.launcher.profile;
 
 import com.google.common.base.Objects;
+
 import com.google.common.collect.Sets;
 import com.mojang.launcher.updater.VersionFilter;
 import com.mojang.launcher.versions.ReleaseType;
@@ -12,6 +13,8 @@ import java.util.Set;
 import net.minecraft.launcher.game.MinecraftReleaseType;
 import net.minecraft.launcher.game.MinecraftReleaseTypeFactory;
 import net.minecraft.launcher.profile.LauncherVisibilityRule;
+
+import java.net.Proxy; // Para o tipo de proxy
 
 public class Profile
 implements Comparable<Profile> {
@@ -31,6 +34,34 @@ implements Comparable<Profile> {
     private Boolean useHopperCrashService;
     private LauncherVisibilityRule launcherVisibilityOnGameClose;
 
+ // Novas Configurações de Proxy
+    public enum ProxyType {
+        NONE("Nenhum"), // Adicionado para desabilitar explicitamente
+        HTTP("HTTP"),
+        SOCKS("SOCKS");
+
+        private final String displayName;
+        ProxyType(String displayName) { this.displayName = displayName; }
+        @Override public String toString() { return displayName; }
+        public static ProxyType fromString(String text) {
+            for (ProxyType b : ProxyType.values()) {
+                if (b.displayName.equalsIgnoreCase(text) || b.name().equalsIgnoreCase(text)) {
+                    return b;
+                }
+            }
+            return NONE; // Default to NONE if not found
+        }
+    }
+    
+    private boolean proxyEnabled = false;
+    private ProxyType proxyType = ProxyType.NONE;
+    private String proxyHost;
+    private int proxyPort; // Usar int para a porta
+    private String proxyUser;
+    //private transient String proxyPassword; // transient para não salvar em plain text, idealmente armazenar de forma segura ou pedir sempre
+    private String proxyPassword; // transient para não salvar em plain text, idealmente armazenar de forma segura ou pedir sempre
+
+    
     public Profile() {
     }
 
@@ -142,6 +173,56 @@ implements Comparable<Profile> {
     public void setLauncherVisibilityOnGameClose(LauncherVisibilityRule launcherVisibilityOnGameClose) {
         this.launcherVisibilityOnGameClose = launcherVisibilityOnGameClose;
     }
+    
+ // --- Getters e Setters para Proxy ---
+    public boolean isProxyEnabled() {
+        return proxyEnabled;
+    }
+
+    public void setProxyEnabled(boolean proxyEnabled) {
+        this.proxyEnabled = proxyEnabled;
+    }
+
+    public ProxyType getProxyType() {
+        return Objects.firstNonNull(proxyType, ProxyType.NONE);
+    }
+
+    public void setProxyType(ProxyType proxyType) {
+        this.proxyType = proxyType;
+    }
+
+    public String getProxyHost() {
+        return proxyHost;
+    }
+
+    public void setProxyHost(String proxyHost) {
+        this.proxyHost = proxyHost;
+    }
+
+    public int getProxyPort() {
+        return proxyPort;
+    }
+
+    public void setProxyPort(int proxyPort) {
+        this.proxyPort = proxyPort;
+    }
+
+    public String getProxyUser() {
+        return proxyUser;
+    }
+
+    public void setProxyUser(String proxyUser) {
+        this.proxyUser = proxyUser;
+    }
+
+    public String getProxyPassword() {
+        return proxyPassword;
+    }
+
+    public void setProxyPassword(String proxyPassword) {
+        this.proxyPassword = proxyPassword;
+    }
+    // --- Fim Getters e Setters para Proxy ---
 
     @Override
     public int compareTo(Profile o) {
