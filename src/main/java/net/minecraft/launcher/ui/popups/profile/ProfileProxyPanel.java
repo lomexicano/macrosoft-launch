@@ -10,7 +10,12 @@ import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 
+import net.minecraft.launcher.Launcher; // Para acessar a instância do Launcher
+import net.minecraft.launcher.utils.CryptoUtils; // Importar a nova classe
+
 public class ProfileProxyPanel extends JPanel {
+    private final Launcher minecraftLauncher; // Adicionar referência ao Launcher
+
     private final ProfileEditorPopup editor;
     private final Profile profile;
 
@@ -31,9 +36,11 @@ public class ProfileProxyPanel extends JPanel {
     public ProfileProxyPanel(ProfileEditorPopup editor) {
         this.editor = editor;
         this.profile = editor.getProfile();
+        this.minecraftLauncher = editor.getMinecraftLauncher(); // Obter a instância do Launcher
 
         setLayout(new GridBagLayout());
         setBorder(BorderFactory.createTitledBorder("Configurações de Proxy"));
+
 
         proxyComponents = new Component[]{
                 proxyTypeLabel, proxyTypeComboBox,
@@ -109,12 +116,16 @@ public class ProfileProxyPanel extends JPanel {
     }
 
     private void fillValuesFromProfile() {
-        proxyEnabledCheckbox.setSelected(profile.isProxyEnabled());
+    	proxyEnabledCheckbox.setSelected(profile.isProxyEnabled());
         proxyTypeComboBox.setSelectedItem(profile.getProxyType());
         proxyHostField.setText(profile.getProxyHost() != null ? profile.getProxyHost() : "");
         proxyPortField.setText(profile.getProxyPort() > 0 ? String.valueOf(profile.getProxyPort()) : "");
         proxyUserField.setText(profile.getProxyUser() != null ? profile.getProxyUser() : "");
-        proxyPasswordField.setText(profile.getProxyPassword() != null ? profile.getProxyPassword() : ""); // Cuidado
+
+        // Descriptografar a senha ao preencher
+        String encryptedPassword = profile.getProxyPassword();
+        String decryptedPassword = CryptoUtils.decrypt(encryptedPassword, minecraftLauncher);
+        proxyPasswordField.setText(decryptedPassword != null ? decryptedPassword : "");
     }
 
  // Em ProfileProxyPanel.java
@@ -161,9 +172,18 @@ public class ProfileProxyPanel extends JPanel {
             @Override public void changedUpdate(DocumentEvent e) { profile.setProxyUser(proxyUserField.getText().trim()); }
         });
 
-        // Listener para proxyPasswordField
+     // Listener para proxyPasswordField
         proxyPasswordField.getDocument().addDocumentListener(new DocumentListener() {
-            private void updatePass() { profile.setProxyPassword(new String(proxyPasswordField.getPassword())); }
+            private void updatePass() {
+                // Criptografar a senha antes de salvar no objeto Profile
+                String plainPassword = new String(proxyPasswordField.getPassword());
+                if (plainPassword.isEmpty()) {
+                    profile.setProxyPassword(null); // Ou string vazia se preferir, mas null é mais limpo
+                } else {
+                    String encryptedPassword = CryptoUtils.encrypt(plainPassword, minecraftLauncher);
+                    profile.setProxyPassword(encryptedPassword);
+                }
+            }
             @Override public void insertUpdate(DocumentEvent e) { updatePass(); }
             @Override public void removeUpdate(DocumentEvent e) { updatePass(); }
             @Override public void changedUpdate(DocumentEvent e) { updatePass(); }

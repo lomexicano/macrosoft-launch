@@ -18,65 +18,72 @@ import java.net.Proxy; // Para o tipo de proxy
 
 public class Profile
 implements Comparable<Profile> {
-    public static final String DEFAULT_JRE_ARGUMENTS_64BIT = "-Xmx1G -XX:+UseConcMarkSweepGC -XX:+CMSIncrementalMode -XX:-UseAdaptiveSizePolicy -Xmn128M";
-    public static final String DEFAULT_JRE_ARGUMENTS_32BIT = "-Xmx512M -XX:+UseConcMarkSweepGC -XX:+CMSIncrementalMode -XX:-UseAdaptiveSizePolicy -Xmn128M";
-    public static final Resolution DEFAULT_RESOLUTION = new Resolution(854, 480);
-    public static final LauncherVisibilityRule DEFAULT_LAUNCHER_VISIBILITY = LauncherVisibilityRule.CLOSE_LAUNCHER;
-    public static final Set<MinecraftReleaseType> DEFAULT_RELEASE_TYPES = Sets.newHashSet(MinecraftReleaseType.RELEASE);
-    private String name;
-    private File gameDir;
-    private String lastVersionId;
-    private String javaDir;
-    private String javaArgs;
-    private Resolution resolution;
-    private Set<MinecraftReleaseType> allowedReleaseTypes;
-    private String playerUUID;
-    private Boolean useHopperCrashService;
-    private LauncherVisibilityRule launcherVisibilityOnGameClose;
+	public static final String DEFAULT_JRE_ARGUMENTS_64BIT = "-Xmx1G -XX:+UseConcMarkSweepGC -XX:+CMSIncrementalMode -XX:-UseAdaptiveSizePolicy -Xmn128M";
+	public static final String DEFAULT_JRE_ARGUMENTS_32BIT = "-Xmx512M -XX:+UseConcMarkSweepGC -XX:+CMSIncrementalMode -XX:-UseAdaptiveSizePolicy -Xmn128M";
+	public static final Resolution DEFAULT_RESOLUTION = new Resolution(854, 480);
+	public static final LauncherVisibilityRule DEFAULT_LAUNCHER_VISIBILITY = LauncherVisibilityRule.CLOSE_LAUNCHER;
+	public static final Set<MinecraftReleaseType> DEFAULT_RELEASE_TYPES = Sets.newHashSet(MinecraftReleaseType.RELEASE);
+	private String name;
+	private File gameDir;
+	private String lastVersionId;
+	private String javaDir;
+	private String javaArgs;
+	private Resolution resolution;
+	private Set<MinecraftReleaseType> allowedReleaseTypes;
+	private String playerUUID;
+	private Boolean useHopperCrashService;
+	private LauncherVisibilityRule launcherVisibilityOnGameClose;
 
- // Novas Configurações de Proxy
-    public enum ProxyType {
-        NONE("Nenhum"), // Adicionado para desabilitar explicitamente
-        HTTP("HTTP"),
-        SOCKS("SOCKS");
+	// Novas Configurações de Proxy
+	public enum ProxyType {
+		NONE("Nenhum"), // Adicionado para desabilitar explicitamente
+		HTTP("HTTP"),
+		SOCKS("SOCKS");
 
-        private final String displayName;
-        ProxyType(String displayName) { this.displayName = displayName; }
-        @Override public String toString() { return displayName; }
-        public static ProxyType fromString(String text) {
-            for (ProxyType b : ProxyType.values()) {
-                if (b.displayName.equalsIgnoreCase(text) || b.name().equalsIgnoreCase(text)) {
-                    return b;
-                }
-            }
-            return NONE; // Default to NONE if not found
-        }
-    }
-    
-    private boolean proxyEnabled = false;
-    private ProxyType proxyType = ProxyType.NONE;
-    private String proxyHost;
-    private int proxyPort; // Usar int para a porta
-    private String proxyUser;
-    //private transient String proxyPassword; // transient para não salvar em plain text, idealmente armazenar de forma segura ou pedir sempre
-    private String proxyPassword; // transient para não salvar em plain text, idealmente armazenar de forma segura ou pedir sempre
+		private final String displayName;
+		ProxyType(String displayName) { this.displayName = displayName; }
+		@Override public String toString() { return displayName; }
+		public static ProxyType fromString(String text) {
+			for (ProxyType b : ProxyType.values()) {
+				if (b.displayName.equalsIgnoreCase(text) || b.name().equalsIgnoreCase(text)) {
+					return b;
+				}
+			}
+			return NONE; // Default to NONE if not found
+		}
+	}
 
-    
-    public Profile() {
-    }
+	private boolean proxyEnabled = false;
+	private ProxyType proxyType = ProxyType.NONE;
+	private String proxyHost;
+	private int proxyPort; // Usar int para a porta
+	private String proxyUser;
+	private String proxyPassword;
 
-    public Profile(Profile copy) {
-        this.name = copy.name;
-        this.gameDir = copy.gameDir;
-        this.playerUUID = copy.playerUUID;
-        this.lastVersionId = copy.lastVersionId;
-        this.javaDir = copy.javaDir;
-        this.javaArgs = copy.javaArgs;
-        this.resolution = copy.resolution == null ? null : new Resolution(copy.resolution);
-        this.allowedReleaseTypes = copy.allowedReleaseTypes == null ? null : Sets.newHashSet(copy.allowedReleaseTypes);
-        this.useHopperCrashService = copy.useHopperCrashService;
-        this.launcherVisibilityOnGameClose = copy.launcherVisibilityOnGameClose;
-    }
+
+	public Profile() {
+	}
+
+	public Profile(Profile copy) {
+		this.name = copy.name;
+		this.gameDir = copy.gameDir;
+		this.playerUUID = copy.playerUUID;
+		this.lastVersionId = copy.lastVersionId;
+		this.javaDir = copy.javaDir;
+		this.javaArgs = copy.javaArgs;
+		this.resolution = (copy.resolution == null) ? null : new Resolution(copy.resolution);
+		this.allowedReleaseTypes = (copy.allowedReleaseTypes == null) ? null : Sets.newHashSet(copy.allowedReleaseTypes);
+		this.useHopperCrashService = copy.useHopperCrashService;
+		this.launcherVisibilityOnGameClose = copy.launcherVisibilityOnGameClose;
+
+		// Copiar os campos de proxy
+		this.proxyEnabled = copy.proxyEnabled;
+		this.proxyType = copy.proxyType;
+		this.proxyHost = copy.proxyHost;
+		this.proxyPort = copy.proxyPort;
+		this.proxyUser = copy.proxyUser;
+		this.proxyPassword = copy.proxyPassword;
+	}
 
     public Profile(String name) {
         this.name = name;
