@@ -21,7 +21,7 @@ extends BaseUserAuthentication {
 	
 	private GameProfile[] profiles;
 
-	protected MacrosoftMockAuth(AuthenticationService authenticationService) {
+	public MacrosoftMockAuth(AuthenticationService authenticationService) {
 		super(authenticationService);
 		// TODO Auto-generated constructor stub
 	}

@@ -1,34 +1,22 @@
 package net.minecraft.launcher;
 
 import com.mojang.launcher.OperatingSystem;
-import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Image;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.net.PasswordAuthentication;
 import java.net.Proxy;
-import java.net.SocketAddress;
 import java.util.List;
 import javax.imageio.ImageIO;
-import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.NonOptionArgumentSpec;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import joptsimple.OptionSpec;
-import joptsimple.OptionSpecBuilder;
-import net.minecraft.launcher.Launcher;
-import net.minecraft.launcher.LauncherConstants;
-import net.minecraft.launcher.Macrosoft.Bootstrapper;
+import net.minecraft.launcher.Macrosoft.MacrosoftModpackBrowser;
 import net.minecraft.launcher.ui.MacrosoftInit;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,114 +24,156 @@ public class Main {
     private static final Logger LOGGER = LogManager.getLogger();
     private static String macrosoftLauncherContext = "";
 
-    public static void main(String[] args) {
-    	
-    	MacrosoftInit initPanel = new MacrosoftInit("Welcome ♥️");
-    	
-    	ActionListener onLoad = new ActionListener () {
-	      public void actionPerformed(ActionEvent e)
-	      {
-	    	  initPanel.dispose();
-	      }
-	    };
-    	
-    	ActionListener listener = new ActionListener () {
-  	      public void actionPerformed(ActionEvent e)
-  	      {
-  	    	LOGGER.debug("main() called!");
-  	    	String selectedContext = ((JButton)e.getSource()).getText();
-  	    	macrosoftLauncherContext = selectedContext;
-  	    	initPanel.dispose();
-  	        Main.startLauncher(args);
-  	      }
-  	    };
-  	    
-  	    (new Bootstrapper(Main.getWorkingDirectory())).run(onLoad, listener);
-        
+    /** Define qual modpack/contexto será usado ao inicializar o Launcher. */
+    public static void setContext(String context) {
+        macrosoftLauncherContext = context;
     }
 
-    private static void startLauncher(String[] args) {
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            // Tela de splash enquanto o frame principal é montado
+            MacrosoftInit initPanel = new MacrosoftInit("Welcome ♥️");
+
+            // ── Criar frame principal ──────────────────────────────────────
+            JFrame frame = new JFrame("Macrosoft Launcher");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setPreferredSize(new Dimension(640, 520));
+            frame.setMinimumSize(new Dimension(500, 400));
+            try {
+                BufferedImage icon = ImageIO.read(Main.class.getResource("/favicon.png"));
+                if (icon != null) frame.setIconImage(icon);
+            } catch (IOException | NullPointerException ignored) {}
+
+            // ── Diretório base .macrosoft (junto do jar/cwd) ──────────────
+            File macrosoftDir = new File(System.getProperty("user.dir", "."), ".macrosoft");
+
+            // ── Painel de seleção de modpacks (carrega dados async) ────────
+            MacrosoftModpackBrowser browser = new MacrosoftModpackBrowser(macrosoftDir, frame, args);
+            frame.setContentPane(browser);
+            frame.pack();
+            frame.setLocationRelativeTo(null);
+
+            // Fechar splash e exibir o browser após breve momento
+            javax.swing.Timer t = new javax.swing.Timer(400, e -> {
+                initPanel.close();
+                frame.setVisible(true);
+            });
+            t.setRepeats(false);
+            t.start();
+        });
+    }
+
+    /**
+     * Inicializa o Launcher de Minecraft dentro do frame já existente,
+     * usando o contexto (modpack) previamente definido em {@link #setContext}.
+     */
+    public static void startLauncherInFrame(JFrame frame, String[] args) {
         OptionParser parser = new OptionParser();
         parser.allowsUnrecognizedOptions();
         parser.accepts("winTen");
-        ArgumentAcceptingOptionSpec<String> proxyHostOption = parser.accepts("proxyHost").withRequiredArg();
-        ArgumentAcceptingOptionSpec<Integer> proxyPortOption = parser.accepts("proxyPort").withRequiredArg().defaultsTo("8080", new String[0]).ofType(Integer.class);
-        ArgumentAcceptingOptionSpec<File> workDirOption = parser.accepts("workDir").withRequiredArg().ofType(File.class).defaultsTo(Main.getWorkingDirectory(), new File[0]);
+        ArgumentAcceptingOptionSpec<String> proxyHostOption =
+            parser.accepts("proxyHost").withRequiredArg();
+        ArgumentAcceptingOptionSpec<Integer> proxyPortOption =
+            parser.accepts("proxyPort").withRequiredArg()
+                  .defaultsTo("8080", new String[0]).ofType(Integer.class);
+        ArgumentAcceptingOptionSpec<File> workDirOption =
+            parser.accepts("workDir").withRequiredArg()
+                  .ofType(File.class).defaultsTo(Main.getWorkingDirectory(), new File[0]);
         NonOptionArgumentSpec<String> nonOption = parser.nonOptions();
+
         OptionSet optionSet = parser.parse(args);
         List<String> leftoverArgs = optionSet.valuesOf(nonOption);
+
         String hostName = optionSet.valueOf(proxyHostOption);
         Proxy proxy = Proxy.NO_PROXY;
         if (hostName != null) {
             try {
-                proxy = new Proxy(Proxy.Type.SOCKS, new InetSocketAddress(hostName, (int)optionSet.valueOf(proxyPortOption)));
-            } catch (Exception exception) {
-                // empty catch block
-            }
+                proxy = new Proxy(Proxy.Type.SOCKS,
+                    new InetSocketAddress(hostName, (int) optionSet.valueOf(proxyPortOption)));
+            } catch (Exception ignored) {}
         }
+
         File workingDirectory = optionSet.valueOf(workDirOption);
         workingDirectory.mkdirs();
-        LOGGER.debug("About to create JFrame.");
-        Proxy finalProxy = proxy;
-        JFrame frame = new JFrame();
-        //frame.setTitle("Minecraft Launcher " + LauncherConstants.getVersionName() + LauncherConstants.PROPERTIES.getEnvironment().getTitle());
-        frame.setTitle("Macrosoft Launcher");
-        frame.setPreferredSize(new Dimension(900, 580));
-        try {
-            //InputStream in = Launcher.class.getResourceAsStream("/favicon.png");
-            BufferedImage image = ImageIO.read(Main.class.getResource("/favicon.png"));
-            if (image != null) {
-                frame.setIconImage(image);
-            }
-        } catch (IOException in) {
-            // empty catch block
-        }
-        frame.pack();
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
+
         if (optionSet.has("winTen")) {
             System.setProperty("os.name", "Windows 10");
             System.setProperty("os.version", "10.0");
         }
-        LOGGER.debug("Starting up launcher.");
-        Launcher launcher = new Launcher(frame, workingDirectory, finalProxy, null, leftoverArgs.toArray(new String[leftoverArgs.size()]), 100);
+
+        LOGGER.debug("Starting launcher in existing frame for context: " + macrosoftLauncherContext);
+        Proxy finalProxy = proxy;
+        Launcher launcher = new Launcher(
+            frame, workingDirectory, finalProxy, null,
+            leftoverArgs.toArray(new String[0]), 100);
+
         if (optionSet.has("winTen")) {
             launcher.setWinTenHack();
         }
-        frame.setLocationRelativeTo(null);
-        LOGGER.debug("End of main.");
+        LOGGER.debug("Launcher initialized.");
+    }
+
+    /**
+     * Inicializa um Launcher headless para um modpack, opcionalmente iniciando o jogo.
+     * O browser frame é passado apenas como referência para diálogos filhos.
+     *
+     * @param modpackName  nome do subdiretório em .macrosoft/
+     * @param playerName   nick do player (pode ser null se autoPlay=false)
+     * @param autoPlay     true = lança o jogo imediatamente após login
+     * @param browserFrame frame do browser (não será modificado)
+     * @param args         argumentos originais do lançador (proxy, etc.)
+     * @return a instância de Launcher criada
+     */
+    public static Launcher launchModpack(String modpackName, String playerName,
+                                          boolean autoPlay, JFrame browserFrame, String[] args) {
+        setContext(modpackName);
+
+        OptionParser parser = new OptionParser();
+        parser.allowsUnrecognizedOptions();
+        parser.accepts("winTen");
+        ArgumentAcceptingOptionSpec<String> proxyHostOpt =
+            parser.accepts("proxyHost").withRequiredArg();
+        ArgumentAcceptingOptionSpec<Integer> proxyPortOpt =
+            parser.accepts("proxyPort").withRequiredArg()
+                  .defaultsTo("8080", new String[0]).ofType(Integer.class);
+        NonOptionArgumentSpec<String> nonOpt = parser.nonOptions();
+        OptionSet opts = parser.parse(args);
+
+        Proxy proxy = Proxy.NO_PROXY;
+        String host = opts.valueOf(proxyHostOpt);
+        if (host != null) {
+            try {
+                proxy = new Proxy(Proxy.Type.SOCKS,
+                    new InetSocketAddress(host, (int) opts.valueOf(proxyPortOpt)));
+            } catch (Exception ignored) {}
+        }
+        if (opts.has("winTen")) {
+            System.setProperty("os.name", "Windows 10");
+            System.setProperty("os.version", "10.0");
+        }
+
+        File workingDir = getWorkingDirectory();
+        workingDir.mkdirs();
+        String[] leftover = opts.valuesOf(nonOpt).toArray(new String[0]);
+
+        Launcher.configureNext(playerName, autoPlay, true /* suppressUI */);
+        Launcher launcher = new Launcher(browserFrame, workingDir, proxy, null, leftover, 100);
+        if (opts.has("winTen")) launcher.setWinTenHack();
+
+        LOGGER.debug("launchModpack: context={} autoPlay={}", modpackName, autoPlay);
+        return launcher;
     }
 
     public static File getWorkingDirectory() {
-        File workingDirectory;
-        /*
-         * Here Macrosoft Federal changes the working directory (28/4/2020, 19h44)
-         * 
-         */
-        //String userHome = System.getProperty("user.home", ".");
         String userHome = System.getProperty("user.dir", ".");
-
         switch (OperatingSystem.getCurrentPlatform()) {
-            case LINUX: {
-                workingDirectory = new File(userHome, ".macrosoft/" + macrosoftLauncherContext + "/");
-                break;
-            }
-            case WINDOWS: {
-                //String applicationData = System.getenv("APPDATA");
-                //String folder = applicationData != null ? applicationData : userHome;
-                workingDirectory = new File(userHome, ".macrosoft/" + macrosoftLauncherContext + "/");
-                break;
-            }
-            case OSX: {
-                workingDirectory = new File(userHome, "Library/Application Support/macrosoft" + "/" + macrosoftLauncherContext); //This has no slash at the end
-                break;
-            }
-            default: {
-                workingDirectory = new File(userHome, "macrosoft/" +  ".macrosoft/" + macrosoftLauncherContext + "/");
-            }
+            case LINUX:
+            case WINDOWS:
+                return new File(userHome, ".macrosoft/" + macrosoftLauncherContext + "/");
+            case OSX:
+                return new File(userHome, "Library/Application Support/macrosoft/" + macrosoftLauncherContext);
+            default:
+                return new File(userHome, "macrosoft/.macrosoft/" + macrosoftLauncherContext + "/");
         }
-        return workingDirectory;
     }
-
 }
-

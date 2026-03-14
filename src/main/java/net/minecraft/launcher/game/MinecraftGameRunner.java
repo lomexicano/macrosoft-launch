@@ -86,6 +86,7 @@ implements GameProcessRunnable {
     private final Launcher minecraftLauncher;
     private final String[] additionalLaunchArgs;
     private final GameProcessFactory processFactory = new DirectGameProcessFactory();
+    private GameProcess currentProcess;
     private File nativeDir;
     private LauncherVisibilityRule visibilityRule = LauncherVisibilityRule.CLOSE_LAUNCHER;
     private UserAuthentication auth;
@@ -176,7 +177,13 @@ implements GameProcessRunnable {
         if (!(serverResourcePacksDir = new File(gameDirectory, "server-resource-packs")).exists()) {
             serverResourcePacksDir.mkdirs();
         }
-        GameProcessBuilder processBuilder = new GameProcessBuilder(Objects.firstNonNull(this.selectedProfile.getJavaPath(), OperatingSystem.getCurrentPlatform().getJavaDir()));
+        // Normalizar separadores de caminho (perfis criados no Windows podem ter '\')
+        String rawJavaPath = Objects.firstNonNull(
+                this.selectedProfile.getJavaPath(),
+                OperatingSystem.getCurrentPlatform().getJavaDir());
+        String javaExecutable = rawJavaPath.replace('\\', File.separatorChar);
+        LOGGER.info("Java executable (normalized): " + javaExecutable);
+        GameProcessBuilder processBuilder = new GameProcessBuilder(javaExecutable);
         processBuilder.withSysOutFilter(new Predicate<String>(){
 
             @Override
@@ -276,8 +283,8 @@ implements GameProcessRunnable {
         processBuilder.withArguments(this.additionalLaunchArgs);
         try {
             LOGGER.debug("Running " + StringUtils.join(processBuilder.getFullCommands(), " "));
-            GameProcess process = this.processFactory.startGame(processBuilder);
-            process.setExitRunnable(this);
+            this.currentProcess = this.processFactory.startGame(processBuilder);
+            this.currentProcess.setExitRunnable(this);
             this.setStatus(GameInstanceStatus.PLAYING);
             if (this.visibilityRule != LauncherVisibilityRule.DO_NOTHING) {
                 this.minecraftLauncher.getUserInterface().setVisible(false);
@@ -548,6 +555,13 @@ implements GameProcessRunnable {
 
     public void setVisibility(LauncherVisibilityRule visibility) {
         this.visibilityRule = visibility;
+    }
+
+    /** Para o processo do jogo se estiver em execução. */
+    public void stopCurrentGame() {
+        if (this.currentProcess != null && this.currentProcess.isRunning()) {
+            this.currentProcess.stop();
+        }
     }
 
     public UserAuthentication getAuth() {

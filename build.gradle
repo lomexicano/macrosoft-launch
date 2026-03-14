@@ -1,49 +1,41 @@
 plugins {
     id 'java'
     id 'application'
-    id 'com.github.johnrengelman.shadow' version '4.0.4'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
-mainClassName = 'net.minecraft.launcher.Main'
+application {
+    mainClass = 'net.minecraft.launcher.Main'
+}
 
-apply plugin: 'java' 		// 
-sourceCompatibility = 1.8	// It ensures java 8 as compiler
-targetCompatibility = 1.8	//
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 
 repositories {
     mavenCentral()
-    jcenter()
-    maven { url = 'https://europe-maven.pkg.dev/jxbrowser/releases' }
     maven {
         name = "mojang"
         url = "https://libraries.minecraft.net/"
     }
 }
 
-
-
 dependencies {
+    implementation group: 'net.lingala.zip4j', name: 'zip4j', version: '2.6.1'
+    implementation group: 'org.json', name: 'json', version: '20160810'
+    implementation group: 'com.google.code.gson', name: 'gson', version: '2.3.1'
+    implementation group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.0'
+    implementation group: 'com.google.guava', name: 'guava', version: '18.0'
 
-	compile group: 'net.lingala.zip4j', name: 'zip4j', version: '2.6.1'
-	compile group: 'org.json', name: 'json', version: '20160810'
-    compile group: 'com.google.code.gson', name: 'gson', version: '2.3.1'
-    compile group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.0'
-    compile group: 'com.google.guava', name: 'guava', version: '18.0'
-    //compile group: 'com.teamdev.jxbrowser', name: 'jxbrowser-cross-platform', version: '7.21.2'
-    //compile group: 'com.teamdev.jxbrowser', name: 'jxbrowser-swing', version: '7.21.2'
-    
-    compile group: 'net.sf.jopt-simple', name: 'jopt-simple', version: '4.8'
+    implementation group: 'net.sf.jopt-simple', name: 'jopt-simple', version: '4.8'
 
-    compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.3.2'
-    compile group: 'commons-io', name: 'commons-io', version: '2.4'
-    compile group: 'commons-codec', name: 'commons-codec', version: '1.10'
-    //compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.5' // Not needed?
-    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.5'
-    //compile group: 'org.apache.maven.plugins', name: 'maven-shade-plugin', version: '3.1.0'
-   
+    implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.3.2'
+    implementation group: 'commons-io', name: 'commons-io', version: '2.4'
+    implementation group: 'commons-codec', name: 'commons-codec', version: '1.10'
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.5'
 }
 
 shadowJar {
     exclude '**/Log4j2Plugins.dat'
-    //transform(com.github.jengelman.gradle.plugins.shadow.transformers.Log4j2PluginsCacheFileTransformer) // Not needed?
 }

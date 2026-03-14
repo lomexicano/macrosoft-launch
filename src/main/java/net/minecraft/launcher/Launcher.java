@@ -82,6 +82,19 @@ import org.apache.logging.log4j.Logger;
 public class Launcher {
     private static Launcher INSTANCE;
     private static final Logger LOGGER;
+
+    // ── Config estática para a próxima instância (consumida no construtor) ──
+    private static String NEXT_PLAYER_NAME = null;
+    private static boolean NEXT_AUTO_PLAY   = false;
+    private static boolean NEXT_SUPPRESS_UI = false;
+
+    /** Define nome do player e comportamento para o próximo Launcher criado. */
+    public static void configureNext(String playerName, boolean autoPlay, boolean suppressUI) {
+        NEXT_PLAYER_NAME = playerName;
+        NEXT_AUTO_PLAY   = autoPlay;
+        NEXT_SUPPRESS_UI = suppressUI;
+    }
+
     private final com.mojang.launcher.Launcher launcher;
     private final Integer bootstrapVersion;
     private final MinecraftUserInterface userInterface;
@@ -91,6 +104,8 @@ public class Launcher {
     private boolean winTenHack = false;
     private UUID clientToken = UUID.randomUUID();
     private String requestedUser;
+    private String pendingPlayerName = null;
+    private boolean autoPlayOnLogin  = false;
 
     public static Launcher getCurrentInstance() {
         return INSTANCE;
@@ -108,9 +123,21 @@ public class Launcher {
     public Launcher(JFrame frame, File workingDirectory, Proxy proxy, PasswordAuthentication proxyAuth, String[] args, Integer bootstrapVersion) {
     	LOGGER.info("Macrosoft was here");
     	INSTANCE = this;
+
+        // Consumir configuração estática antes de qualquer outra coisa
+        this.pendingPlayerName = NEXT_PLAYER_NAME;
+        this.autoPlayOnLogin   = NEXT_AUTO_PLAY;
+        boolean suppressUI     = NEXT_SUPPRESS_UI;
+        NEXT_PLAYER_NAME = null;
+        NEXT_AUTO_PLAY   = false;
+        NEXT_SUPPRESS_UI = false;
+
         this.setupErrorHandling();
         this.bootstrapVersion = bootstrapVersion;
         this.userInterface = this.selectUserInterface(frame);
+        if (suppressUI) {
+            ((SwingUserInterface) this.userInterface).setSuppressUI(true);
+        }
         if (bootstrapVersion < 4) {
             this.userInterface.showOutdatedNotice();
             System.exit(0);
@@ -251,9 +278,33 @@ public class Launcher {
 
     public void ensureLoggedIn() {
         UserAuthentication auth = this.profileManager.getAuthDatabase().getByUUID(this.profileManager.getSelectedUser());
-        //System.out.println(auth);
-        //System.out.println(this.profileManager.getSelectedUser());
         if (auth == null) {
+            // Auto-login com nome de player pré-configurado (modo headless)
+            if (this.pendingPlayerName != null && !this.pendingPlayerName.isEmpty()) {
+                final String name    = this.pendingPlayerName;
+                final boolean doPlay = this.autoPlayOnLogin;
+                this.pendingPlayerName = null;
+                this.autoPlayOnLogin   = false;
+                try {
+                    net.minecraft.launcher.ui.popups.login.MacrosoftMockAuth mockAuth =
+                        new net.minecraft.launcher.ui.popups.login.MacrosoftMockAuth(
+                            this.profileManager.getAuthDatabase().getAuthenticationService());
+                    mockAuth.setUsername(name);
+                    mockAuth.logIn();
+                    String uuid = UUIDTypeAdapter.fromUUID(mockAuth.getSelectedProfile().getId());
+                    this.profileManager.getAuthDatabase().register(uuid, mockAuth);
+                    this.profileManager.setSelectedUser(uuid);
+                    this.profileManager.saveProfiles();
+                    this.profileManager.fireRefreshEvent();
+                    if (doPlay) {
+                        this.launchDispatcher.play();
+                    }
+                } catch (AuthenticationException | IOException e) {
+                    LOGGER.error("Auto-login falhou: {}", e.getMessage());
+                    this.getUserInterface().showLoginPrompt();
+                }
+                return;
+            }
             this.getUserInterface().showLoginPrompt();
         } else if (!auth.isLoggedIn()) {
             if (auth.canLogIn()) {
@@ -274,26 +325,7 @@ public class Launcher {
             } else {
                 this.getUserInterface().showLoginPrompt();
             }
-        } /*else if (!auth.canPlayOnline()) {
-            try {
-                LOGGER.info("Refreshing auth...");
-                auth.logIn();
-                try {
-                    this.profileManager.saveProfiles();
-                }
-                catch (IOException e) {
-                    LOGGER.error("Couldn't save profiles after refreshing auth!", (Throwable)e);
-                }
-                this.profileManager.fireRefreshEvent();
-            }
-            catch (InvalidCredentialsException e) {
-                LOGGER.error("Exception whilst logging into profile", (Throwable)e);
-                this.getUserInterface().showLoginPrompt();
-            }
-            catch (AuthenticationException e) {
-                LOGGER.error("Exception whilst logging into profile", (Throwable)e);
-            }
-        }*/
+        }
     }
 
     public UUID getClientToken() {

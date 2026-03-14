@@ -61,11 +61,17 @@ implements MinecraftUserInterface {
     private final Launcher minecraftLauncher;
     private LauncherPanel launcherPanel;
     private final JFrame frame;
+    /** Quando true, esta instância não toca nem exibe o frame (modo headless). */
+    private boolean suppressUI = false;
 
     public SwingUserInterface(Launcher minecraftLauncher, JFrame frame) {
         this.minecraftLauncher = minecraftLauncher;
         this.frame = frame;
         SwingUserInterface.setLookAndFeel();
+    }
+
+    public void setSuppressUI(boolean suppress) {
+        this.suppressUI = suppress;
     }
 
     private static void setLookAndFeel() {
@@ -101,6 +107,7 @@ implements MinecraftUserInterface {
     }
 
     public void showLoginPrompt(final Launcher minecraftLauncher, final LogInPopup.Callback callback) {
+        if (suppressUI) return;
         SwingUtilities.invokeLater(new Runnable(){
 
             @Override
@@ -112,6 +119,12 @@ implements MinecraftUserInterface {
     }
 
     public void initializeFrame() {
+        // Em modo headless, só criamos o launcherPanel internamente (necessário para callbacks).
+        // O frame do browser NÃO é modificado.
+        if (suppressUI) {
+            this.launcherPanel = new LauncherPanel(this.minecraftLauncher);
+            return;
+        }
         this.frame.getContentPane().removeAll();
         this.frame.setTitle("Minecraft Launcher " + LauncherConstants.getVersionName() + LauncherConstants.PROPERTIES.getEnvironment().getTitle());
         this.frame.setPreferredSize(new Dimension(900, 580));
@@ -239,6 +252,7 @@ implements MinecraftUserInterface {
 
     @Override
     public void setVisible(final boolean visible) {
+        if (suppressUI) return;
         SwingUtilities.invokeLater(new Runnable(){
 
             @Override
@@ -250,6 +264,7 @@ implements MinecraftUserInterface {
 
     @Override
     public void shutdownLauncher() {
+        if (suppressUI) return; // não fechar o app quando o launcher headless terminar
         if (SwingUtilities.isEventDispatchThread()) {
             LOGGER.info("Requesting window close");
             this.frame.dispatchEvent(new WindowEvent(this.frame, 201));

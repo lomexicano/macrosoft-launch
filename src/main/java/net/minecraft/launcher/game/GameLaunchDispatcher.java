@@ -161,6 +161,18 @@ implements GameRunnerListener {
     /*
      * WARNING - Removed try catching itself - possible behaviour change.
      */
+    /** Mata todas as instâncias do jogo em execução. */
+    public void stopAll() {
+        this.lock.lock();
+        try {
+            for (MinecraftGameRunner runner : this.instances.values()) {
+                runner.stopCurrentGame();
+            }
+        } finally {
+            this.lock.unlock();
+        }
+    }
+
     public boolean isRunningInSameFolder() {
         this.lock.lock();
         try {
