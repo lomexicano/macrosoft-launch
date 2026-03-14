@@ -5,22 +5,19 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Container;
 import java.awt.GridBagLayout;
-import java.awt.LayoutManager;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.net.URI;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import javax.swing.JScrollPane;
 import net.minecraft.launcher.Launcher;
 import net.minecraft.launcher.LauncherConstants;
 import net.minecraft.launcher.ui.BottomBarPanel;
 import net.minecraft.launcher.ui.TexturedPanel;
 import net.minecraft.launcher.ui.tabs.LauncherTabPanel;
-import net.minecraft.launcher.ui.tabs.WebsiteTab;
 import org.apache.commons.lang3.SystemUtils;
 
 public class LauncherPanel extends JPanel {
@@ -101,14 +98,13 @@ public class LauncherPanel extends JPanel {
         }
         JPanel center = new JPanel();
         center.setLayout(new BorderLayout());
-        center.add((Component)this.tabPanel, "Center");
+        center.add((Component)new JScrollPane(new ModpackGridPanel(this.minecraftLauncher)), "Center");
         center.add((Component)this.progressBar, "South");
         this.progressBar.setVisible(false);
         this.progressBar.setMinimum(0);
         this.progressBar.setMaximum(100);
         this.progressBar.setStringPainted(true);
         result.add((Component)center, "Center");
-        result.add((Component)this.bottomBar, "South");
         return result;
     }
 
