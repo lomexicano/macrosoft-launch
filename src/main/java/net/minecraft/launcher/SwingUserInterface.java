@@ -345,14 +345,16 @@ implements MinecraftUserInterface {
             public void run() {
                 GameOutputTab tab = new GameOutputTab(SwingUserInterface.this.minecraftLauncher);
                 future.set(tab);
-                UserAuthentication auth = gameRunner.getAuth();
-                String name = auth.getSelectedProfile() == null ? "Demo" : auth.getSelectedProfile().getName();
-                SwingUserInterface.this.launcherPanel.getTabPanel().removeTab("Game Output (" + name + ")");
-                SwingUserInterface.this.launcherPanel.getTabPanel().addTab("Game Output (" + name + ")", tab);
-                //SwingUserInterface.this.launcherPanel.getTabPanel().setSelectedComponent(tab);
+                SwingUserInterface.this.launcherPanel.getTabPanel().removeTab("Jogo");
+                SwingUserInterface.this.launcherPanel.getTabPanel().addTab("Jogo", tab);
             }
         });
         return (GameOutputLogProcessor)Futures.getUnchecked(future);
+    }
+
+    /** Expõe o painel de abas do launcher (logs, jogo, crash) para uso externo. */
+    public LauncherTabPanel getTabPanel() {
+        return this.launcherPanel.getTabPanel();
     }
 
     @Override

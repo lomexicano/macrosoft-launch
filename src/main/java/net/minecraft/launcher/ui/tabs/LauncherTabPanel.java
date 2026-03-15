@@ -19,7 +19,7 @@ public class LauncherTabPanel extends JTabbedPane {
     }
 
     protected void createInterface() {
-        this.addTab("Launcher Log", this.console);
+        this.addTab("Launcher", this.console);
     }
 
     public Launcher getMinecraftLauncher() {

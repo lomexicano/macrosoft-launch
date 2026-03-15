@@ -30,10 +30,9 @@ import net.minecraft.launcher.profile.Profile;
 import net.minecraft.launcher.profile.ProfileManager;
 import net.minecraft.launcher.ui.popups.profile.ProfileInfoPanel;
 import net.minecraft.launcher.ui.popups.profile.ProfileJavaPanel;
-import net.minecraft.launcher.ui.popups.profile.ProfileVersionPanel;
+import net.minecraft.launcher.ui.popups.profile.ProfileProxyPanel; // Nova importação
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import net.minecraft.launcher.ui.popups.profile.ProfileProxyPanel; // Nova importação
 
 public class ProfileEditorPopup
 extends JPanel
@@ -42,23 +41,21 @@ implements ActionListener {
     private final Launcher minecraftLauncher;
     private final Profile originalProfile;
     private final Profile profile;
-    private final JButton saveButton = new JButton("Save Profile");
-    private final JButton cancelButton = new JButton("Cancel");
-    private final JButton browseButton = new JButton("Open Game Dir");
+    private final JButton saveButton   = new JButton("Salvar Perfil");
+    private final JButton cancelButton = new JButton("Cancelar");
+    private final JButton browseButton = new JButton("Abrir Pasta do Jogo");
     private final ProfileInfoPanel profileInfoPanel;
-    private final ProfileVersionPanel profileVersionPanel;
     private final ProfileJavaPanel javaInfoPanel;
-    private final ProfileProxyPanel proxyInfoPanel; // Novo Painel
+    private final ProfileProxyPanel proxyInfoPanel;
 
     public ProfileEditorPopup(Launcher minecraftLauncher, Profile profile) {
         super(true);
         this.minecraftLauncher = minecraftLauncher;
-        this.originalProfile = profile;
-        this.profile = new Profile(profile);
-        this.profileInfoPanel = new ProfileInfoPanel(this);
-        this.profileVersionPanel = new ProfileVersionPanel(this);
-        this.javaInfoPanel = new ProfileJavaPanel(this);
-        this.proxyInfoPanel = new ProfileProxyPanel(this); // Instanciar o novo painel
+        this.originalProfile   = profile;
+        this.profile           = new Profile(profile);
+        this.profileInfoPanel  = new ProfileInfoPanel(this);
+        this.javaInfoPanel     = new ProfileJavaPanel(this);
+        this.proxyInfoPanel    = new ProfileProxyPanel(this);
         this.saveButton.addActionListener(this);
         this.cancelButton.addActionListener(this);
         this.browseButton.addActionListener(this);
@@ -71,9 +68,8 @@ implements ActionListener {
         JPanel standardPanels = new JPanel(true);
         standardPanels.setLayout(new BoxLayout(standardPanels, 1));
         standardPanels.add(this.profileInfoPanel);
-        standardPanels.add(this.profileVersionPanel);
         standardPanels.add(this.javaInfoPanel);
-        standardPanels.add(this.proxyInfoPanel); // Adicionar o painel de proxy
+        standardPanels.add(this.proxyInfoPanel);
         this.add(standardPanels, BorderLayout.CENTER);
         JPanel buttonPannel = new JPanel();
         buttonPannel.setLayout(new BoxLayout(buttonPannel, BoxLayout.X_AXIS));
@@ -82,7 +78,7 @@ implements ActionListener {
         buttonPannel.add(this.browseButton);
         buttonPannel.add(Box.createHorizontalStrut(5));
         buttonPannel.add(this.saveButton);
-        this.add(buttonPannel, BorderLayout.SOUTH);;
+        this.add(buttonPannel, BorderLayout.SOUTH);
     }
 
     @Override
@@ -141,13 +137,12 @@ implements ActionListener {
 
     public static void showEditProfileDialog(Launcher minecraftLauncher, Profile profile) {
         JFrame frame = ((SwingUserInterface)minecraftLauncher.getUserInterface()).getFrame();
-        JDialog dialog = new JDialog(frame, "Profile Editor", true);
+        JDialog dialog = new JDialog(frame, "Editor de Perfil", true);
         ProfileEditorPopup editor = new ProfileEditorPopup(minecraftLauncher, profile);
         dialog.add(editor);
         dialog.pack();
         dialog.setLocationRelativeTo(frame);
         dialog.setVisible(true);
     }
-
 }
 

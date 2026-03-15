@@ -36,17 +36,17 @@ import net.minecraft.launcher.utils.JavaLocator;
 public class ProfileJavaPanel
 extends JPanel {
     private final ProfileEditorPopup editor;
-    private final JCheckBox javaPathCustom = new JCheckBox("Executable:");
+    private final JCheckBox javaPathCustom = new JCheckBox("Executável:");
     private final JTextField javaPathField = new JTextField();
-    private final JButton detectJavaButton = new JButton("Detect JAVA"); // Novo Botão
-    private final JCheckBox javaArgsCustom = new JCheckBox("JVM Arguments:");
+    private final JButton detectJavaButton = new JButton("Detectar JAVA");
+    private final JCheckBox javaArgsCustom = new JCheckBox("Argumentos JVM:");
     private final JTextField javaArgsField = new JTextField();
 
     public ProfileJavaPanel(ProfileEditorPopup editor) {
         this.editor = editor;
         this.setLayout(new GridBagLayout());
-        this.setBorder(BorderFactory.createTitledBorder("Java Settings (Advanced)"));
-        
+        this.setBorder(BorderFactory.createTitledBorder("Configurações Java (Avançado)"));
+
      // Tenta deixar a fonte em negrito para mais destaque
         Font buttonFont = detectJavaButton.getFont();
         detectJavaButton.setFont(buttonFont.deriveFont(Font.BOLD));
@@ -202,36 +202,35 @@ extends JPanel {
 
         if (javaPaths.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                "No Java 8 installation was found automatically.\n" +
-                "Please set the path manually or install Java 8.",
-                "Java Detection", JOptionPane.INFORMATION_MESSAGE);
+                "Nenhuma instalação do Java 8 foi encontrada automaticamente.\n" +
+                "Por favor, defina o caminho manualmente ou instale o Java 8.",
+                "Detecção de Java", JOptionPane.INFORMATION_MESSAGE);
         } else if (javaPaths.size() == 1) {
             String foundPath = javaPaths.get(0);
             this.javaPathField.setText(foundPath);
-            this.javaPathCustom.setSelected(true); // Mark as custom
-            updateJavaPathState();               // Ensure profile is updated
+            this.javaPathCustom.setSelected(true);
+            updateJavaPathState();
             JOptionPane.showMessageDialog(this,
-                "Java 8 was found and set:\n" + foundPath,
-                "Java Detection", JOptionPane.INFORMATION_MESSAGE);
+                "Java 8 encontrado e configurado:\n" + foundPath,
+                "Detecção de Java", JOptionPane.INFORMATION_MESSAGE);
         } else {
             JList<String> list = new JList<>(javaPaths.toArray(new String[0]));
             JScrollPane scrollPane = new JScrollPane(list);
-            scrollPane.setPreferredSize(new Dimension(450, 150)); // Adjust size if needed
+            scrollPane.setPreferredSize(new Dimension(450, 150));
             int option = JOptionPane.showOptionDialog(
                 this,
                 scrollPane,
-                "Multiple Java 8 Installations Found",
+                "Várias instalações do Java 8 encontradas",
                 JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE,
                 null, null, null
             );
-
             if (option == JOptionPane.OK_OPTION) {
                 String selectedPath = list.getSelectedValue();
                 if (selectedPath != null) {
                     this.javaPathField.setText(selectedPath);
-                    this.javaPathCustom.setSelected(true); // Mark as custom
-                    updateJavaPathState();               // Ensure profile is updated
+                    this.javaPathCustom.setSelected(true);
+                    updateJavaPathState();
                 }
             }
         }

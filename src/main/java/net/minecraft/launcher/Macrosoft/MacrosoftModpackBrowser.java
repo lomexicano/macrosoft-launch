@@ -3,9 +3,11 @@ package net.minecraft.launcher.Macrosoft;
 import net.minecraft.launcher.Launcher;
 import net.minecraft.launcher.LauncherConstants;
 import net.minecraft.launcher.Main;
+import net.minecraft.launcher.SwingUserInterface;
 import net.minecraft.launcher.game.GameLaunchDispatcher;
 import net.minecraft.launcher.profile.Profile;
 import net.minecraft.launcher.ui.popups.profile.ProfileEditorPopup;
+import net.minecraft.launcher.ui.tabs.LauncherTabPanel;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -45,6 +47,7 @@ public class MacrosoftModpackBrowser extends JPanel {
     private static final Color BTN_STOP     = new Color(180, 40, 40);   // vermelho: "⏹ Parar"
     private static final Color BTN_DL       = new Color(60, 160, 70);   // verde claro: "⬇ Baixar"
     private static final Color BTN_CFG      = new Color(70, 60, 100);   // roxo: "⚙"
+    private static final Color BTN_LOGS     = new Color(40, 80, 110);   // azul escuro: "📋 Logs"
     private static final Color BTN_DISABLED = new Color(55, 50, 65);    // cinza: estados de espera
     private static final Color LINK_COLOR   = new Color(135, 206, 250);
 
@@ -62,6 +65,8 @@ public class MacrosoftModpackBrowser extends JPanel {
         public ImageIcon icon;
         public Launcher playLauncher      = null;
         public Launcher configureLauncher = null;
+        /** Janela de logs reutilizável; recriada quando playLauncher muda. */
+        public JDialog  logDialog         = null;
 
         public ModpackEntry(String name, String downloadUrl, String author, String iconUrl) {
             this.name        = name;
@@ -86,8 +91,9 @@ public class MacrosoftModpackBrowser extends JPanel {
         final ModpackEntry entry;
         final JButton actionBtn;   // único botão de ação, muda de estado
         final JButton configBtn;
-        CardUi(ModpackEntry e, JButton action, JButton cfg) {
-            this.entry = e; this.actionBtn = action; this.configBtn = cfg;
+        final JButton logsBtn;
+        CardUi(ModpackEntry e, JButton action, JButton cfg, JButton logs) {
+            this.entry = e; this.actionBtn = action; this.configBtn = cfg; this.logsBtn = logs;
         }
     }
 
@@ -429,6 +435,12 @@ public class MacrosoftModpackBrowser extends JPanel {
         btnPanel.setBackground(CARD_BG);
 
         if (entry.isDownloaded) {
+            // Botão 📋 Logs (oculto até o launcher ser preparado)
+            JButton logsBtn = styledButton("📋 Logs", BTN_LOGS);
+            logsBtn.setToolTipText("Ver logs do launcher e do jogo");
+            logsBtn.setVisible(false);
+            logsBtn.addActionListener(e -> openLogWindow(entry));
+
             // Botão ⚙ Configurar
             JButton configBtn = styledButton("⚙", BTN_CFG);
             configBtn.setToolTipText("Configurar perfil");
@@ -438,9 +450,10 @@ public class MacrosoftModpackBrowser extends JPanel {
             JButton actionBtn = styledButton("Preparar", BTN_PREPARE);
             actionBtn.addActionListener(e -> onActionClicked(entry, actionBtn));
 
+            btnPanel.add(logsBtn);
             btnPanel.add(configBtn);
             btnPanel.add(actionBtn);
-            cardUiList.add(new CardUi(entry, actionBtn, configBtn));
+            cardUiList.add(new CardUi(entry, actionBtn, configBtn, logsBtn));
 
         } else if (entry.downloadUrl != null) {
             JButton dlBtn = styledButton("⬇  Baixar", BTN_DL);
@@ -485,6 +498,8 @@ public class MacrosoftModpackBrowser extends JPanel {
         savePlayerName(playerName);
         // Feedback imediato
         applyButtonState(actionBtn, ActionState.PREPARING);
+        // Reseta janela de logs para o novo launcher
+        if (entry.logDialog != null) { entry.logDialog.dispose(); entry.logDialog = null; }
         // Cria launcher com autoPlay=false; o poller detecta quando fica READY
         entry.playLauncher = Main.launchModpack(entry.name, playerName, false, parentFrame, launcherArgs);
     }
@@ -538,9 +553,12 @@ public class MacrosoftModpackBrowser extends JPanel {
         for (CardUi cu : cardUiList) {
             ActionState state = getActionState(cu.entry);
             applyButtonState(cu.actionBtn, state);
-            if (cu.configBtn != null) {
+            boolean hasLauncher = cu.entry.playLauncher != null;
+            if (cu.configBtn != null)
                 cu.configBtn.setEnabled(state != ActionState.PLAYING && state != ActionState.DOWNLOADING);
-            }
+            // Botão de logs aparece assim que o launcher for criado
+            if (cu.logsBtn != null)
+                cu.logsBtn.setVisible(hasLauncher);
         }
     }
 
@@ -627,6 +645,32 @@ public class MacrosoftModpackBrowser extends JPanel {
     private void savePlayerName(String name) {
         try { macrosoftBaseDir.mkdirs(); Files.write(playerNameFile().toPath(), name.getBytes()); }
         catch (IOException ignored) {}
+    }
+
+    // ── Janela de logs ─────────────────────────────────────────────────────
+    /**
+     * Abre (ou traz ao foco) a janela de logs da modpack.
+     * A janela tem duas abas: "Launcher" e "Jogo".
+     * Usa o LauncherTabPanel do launcher interno, que já recebe os logs automaticamente.
+     */
+    private void openLogWindow(ModpackEntry entry) {
+        if (entry.playLauncher == null) return;
+
+        if (entry.logDialog == null || !entry.logDialog.isDisplayable()) {
+            SwingUserInterface ui = (SwingUserInterface) entry.playLauncher.getUserInterface();
+            LauncherTabPanel tabPanel = ui.getTabPanel();
+
+            JDialog dialog = new JDialog(parentFrame, "Logs da " + entry.name, false);
+            dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
+            dialog.setPreferredSize(new Dimension(720, 460));
+            dialog.add(tabPanel, BorderLayout.CENTER);
+            dialog.pack();
+            dialog.setLocationRelativeTo(parentFrame);
+            entry.logDialog = dialog;
+        }
+
+        entry.logDialog.setVisible(true);
+        entry.logDialog.toFront();
     }
 
     private void openLink(String url) {

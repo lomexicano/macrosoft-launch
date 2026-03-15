@@ -1,251 +1,154 @@
 package net.minecraft.launcher.ui.popups.profile;
 
+import net.minecraft.launcher.Launcher;
 import net.minecraft.launcher.profile.Profile;
-import net.minecraft.launcher.profile.Profile.ProxyType;
+import net.minecraft.launcher.utils.CryptoUtils;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-
-import net.minecraft.launcher.Launcher; // Para acessar a instância do Launcher
-import net.minecraft.launcher.utils.CryptoUtils; // Importar a nova classe
 
 public class ProfileProxyPanel extends JPanel {
-    private final Launcher minecraftLauncher; // Adicionar referência ao Launcher
-
+    private final Launcher          minecraftLauncher;
     private final ProfileEditorPopup editor;
-    private final Profile profile;
+    private final Profile           profile;
 
-    private final JCheckBox proxyEnabledCheckbox = new JCheckBox("Habilitar Proxy para este Perfil");
-    private final JLabel proxyTypeLabel = new JLabel("Tipo de Proxy:");
-    private final JComboBox<Profile.ProxyType> proxyTypeComboBox = new JComboBox<>(Profile.ProxyType.values());
-    private final JLabel proxyHostLabel = new JLabel("Endereço (Host):");
-    private final JTextField proxyHostField = new JTextField();
-    private final JLabel proxyPortLabel = new JLabel("Porta:");
-    private final JTextField proxyPortField = new JTextField(); // Pode ser JSpinner para números
-    private final JLabel proxyUserLabel = new JLabel("Usuário (Opcional):");
-    private final JTextField proxyUserField = new JTextField();
-    private final JLabel proxyPasswordLabel = new JLabel("Senha (Opcional):");
+    private final JCheckBox    proxyEnabledCheckbox = new JCheckBox("Habilitar Proxy para este Perfil");
+    // Tipo de proxy fixo em SOCKS — não editável pelo usuário
+    private final JLabel       proxyTypeValueLabel  = new JLabel("SOCKS");
+    private final JLabel       proxyHostLabel       = new JLabel("Endereço (Host):");
+    private final JTextField   proxyHostField       = new JTextField();
+    private final JLabel       proxyPortLabel       = new JLabel("Porta:");
+    private final JTextField   proxyPortField       = new JTextField();
+    private final JLabel       proxyUserLabel       = new JLabel("Usuário (Opcional):");
+    private final JTextField   proxyUserField       = new JTextField();
+    private final JLabel       proxyPasswordLabel   = new JLabel("Senha (Opcional):");
     private final JPasswordField proxyPasswordField = new JPasswordField();
 
+    /** Componentes que ficam habilitados/desabilitados junto com o checkbox. */
     private final Component[] proxyComponents;
 
     public ProfileProxyPanel(ProfileEditorPopup editor) {
-        this.editor = editor;
-        this.profile = editor.getProfile();
-        this.minecraftLauncher = editor.getMinecraftLauncher(); // Obter a instância do Launcher
+        this.editor           = editor;
+        this.profile          = editor.getProfile();
+        this.minecraftLauncher = editor.getMinecraftLauncher();
 
         setLayout(new GridBagLayout());
         setBorder(BorderFactory.createTitledBorder("Configurações de Proxy"));
 
-
         proxyComponents = new Component[]{
-                proxyTypeLabel, proxyTypeComboBox,
-                proxyHostLabel, proxyHostField,
-                proxyPortLabel, proxyPortField,
-                proxyUserLabel, proxyUserField,
-                proxyPasswordLabel, proxyPasswordField
+            proxyTypeValueLabel,
+            proxyHostLabel, proxyHostField,
+            proxyPortLabel, proxyPortField,
+            proxyUserLabel, proxyUserField,
+            proxyPasswordLabel, proxyPasswordField
         };
 
         createInterface();
         fillValuesFromProfile();
         addEventHandlers();
-        updateFieldsEnabledState(); // Estado inicial dos campos
+        updateFieldsEnabledState();
     }
 
     private void createInterface() {
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(2, 2, 2, 2);
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets  = new Insets(2, 2, 2, 2);
+        gbc.anchor  = GridBagConstraints.WEST;
+        gbc.fill    = GridBagConstraints.HORIZONTAL;
 
-        // Checkbox para habilitar/desabilitar proxy
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 2; // Ocupa duas colunas
+        // Checkbox habilitar proxy
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
         add(proxyEnabledCheckbox, gbc);
 
-        // Tipo de Proxy
-        gbc.gridy++;
-        gbc.gridx = 0;
-        gbc.gridwidth = 1;
-        gbc.weightx = 0.0;
-        add(proxyTypeLabel, gbc);
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        add(proxyTypeComboBox, gbc);
+        // Tipo de proxy (fixo: SOCKS)
+        gbc.gridy++; gbc.gridwidth = 1;
+        gbc.gridx = 0; gbc.weightx = 0.0;
+        add(new JLabel("Tipo de Proxy:"), gbc);
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        proxyTypeValueLabel.setFont(proxyTypeValueLabel.getFont().deriveFont(Font.BOLD));
+        add(proxyTypeValueLabel, gbc);
 
-        // Host do Proxy
+        // Host
         gbc.gridy++;
-        gbc.gridx = 0;
-        gbc.weightx = 0.0;
-        add(proxyHostLabel, gbc);
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        add(proxyHostField, gbc);
+        gbc.gridx = 0; gbc.weightx = 0.0; add(proxyHostLabel, gbc);
+        gbc.gridx = 1; gbc.weightx = 1.0; add(proxyHostField, gbc);
 
-        // Porta do Proxy
+        // Porta
         gbc.gridy++;
-        gbc.gridx = 0;
-        gbc.weightx = 0.0;
-        add(proxyPortLabel, gbc);
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        add(proxyPortField, gbc);
+        gbc.gridx = 0; gbc.weightx = 0.0; add(proxyPortLabel, gbc);
+        gbc.gridx = 1; gbc.weightx = 1.0; add(proxyPortField, gbc);
 
-        // Usuário do Proxy
+        // Usuário
         gbc.gridy++;
-        gbc.gridx = 0;
-        gbc.weightx = 0.0;
-        add(proxyUserLabel, gbc);
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        add(proxyUserField, gbc);
+        gbc.gridx = 0; gbc.weightx = 0.0; add(proxyUserLabel, gbc);
+        gbc.gridx = 1; gbc.weightx = 1.0; add(proxyUserField, gbc);
 
-        // Senha do Proxy
+        // Senha
         gbc.gridy++;
-        gbc.gridx = 0;
-        gbc.weightx = 0.0;
-        add(proxyPasswordLabel, gbc);
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        add(proxyPasswordField, gbc);
+        gbc.gridx = 0; gbc.weightx = 0.0; add(proxyPasswordLabel, gbc);
+        gbc.gridx = 1; gbc.weightx = 1.0; add(proxyPasswordField, gbc);
     }
 
     private void fillValuesFromProfile() {
-    	proxyEnabledCheckbox.setSelected(profile.isProxyEnabled());
-        proxyTypeComboBox.setSelectedItem(profile.getProxyType());
+        proxyEnabledCheckbox.setSelected(profile.isProxyEnabled());
+        // Sempre garante SOCKS no perfil (tipo fixo)
+        profile.setProxyType(Profile.ProxyType.SOCKS);
         proxyHostField.setText(profile.getProxyHost() != null ? profile.getProxyHost() : "");
         proxyPortField.setText(profile.getProxyPort() > 0 ? String.valueOf(profile.getProxyPort()) : "");
         proxyUserField.setText(profile.getProxyUser() != null ? profile.getProxyUser() : "");
 
-        // Descriptografar a senha ao preencher
-        String encryptedPassword = profile.getProxyPassword();
-        String decryptedPassword = CryptoUtils.decrypt(encryptedPassword, minecraftLauncher);
+        String decryptedPassword = CryptoUtils.decrypt(profile.getProxyPassword(), minecraftLauncher);
         proxyPasswordField.setText(decryptedPassword != null ? decryptedPassword : "");
     }
 
- // Em ProfileProxyPanel.java
     private void addEventHandlers() {
         proxyEnabledCheckbox.addItemListener(e -> {
             profile.setProxyEnabled(proxyEnabledCheckbox.isSelected());
-            updateFieldsEnabledState(); // Isso está correto
+            updateFieldsEnabledState();
         });
 
-        proxyTypeComboBox.addItemListener(e -> {
-            if (e.getStateChange() == ItemEvent.SELECTED) {
-                profile.setProxyType((Profile.ProxyType) proxyTypeComboBox.getSelectedItem());
-                // Re-chamar updateFieldsEnabledState pode ser necessário se NONE desabilitar campos
-                updateFieldsEnabledState();
-            }
-        });
-
-        // Listener para proxyHostField
         proxyHostField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override public void insertUpdate(DocumentEvent e) { profile.setProxyHost(proxyHostField.getText().trim()); }
-            @Override public void removeUpdate(DocumentEvent e) { profile.setProxyHost(proxyHostField.getText().trim()); }
+            @Override public void insertUpdate(DocumentEvent e)  { profile.setProxyHost(proxyHostField.getText().trim()); }
+            @Override public void removeUpdate(DocumentEvent e)  { profile.setProxyHost(proxyHostField.getText().trim()); }
             @Override public void changedUpdate(DocumentEvent e) { profile.setProxyHost(proxyHostField.getText().trim()); }
         });
 
-        // Listener para proxyPortField
         proxyPortField.getDocument().addDocumentListener(new DocumentListener() {
             private void updatePort() {
                 try {
-                    String portText = proxyPortField.getText().trim();
-                    profile.setProxyPort(portText.isEmpty() ? 0 : Integer.parseInt(portText));
-                } catch (NumberFormatException ex) {
-                    profile.setProxyPort(0); // Ou um valor padrão em caso de erro
-                }
+                    String t = proxyPortField.getText().trim();
+                    profile.setProxyPort(t.isEmpty() ? 0 : Integer.parseInt(t));
+                } catch (NumberFormatException ex) { profile.setProxyPort(0); }
             }
-            @Override public void insertUpdate(DocumentEvent e) { updatePort(); }
-            @Override public void removeUpdate(DocumentEvent e) { updatePort(); }
+            @Override public void insertUpdate(DocumentEvent e)  { updatePort(); }
+            @Override public void removeUpdate(DocumentEvent e)  { updatePort(); }
             @Override public void changedUpdate(DocumentEvent e) { updatePort(); }
         });
 
-        // Listener para proxyUserField
         proxyUserField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override public void insertUpdate(DocumentEvent e) { profile.setProxyUser(proxyUserField.getText().trim()); }
-            @Override public void removeUpdate(DocumentEvent e) { profile.setProxyUser(proxyUserField.getText().trim()); }
+            @Override public void insertUpdate(DocumentEvent e)  { profile.setProxyUser(proxyUserField.getText().trim()); }
+            @Override public void removeUpdate(DocumentEvent e)  { profile.setProxyUser(proxyUserField.getText().trim()); }
             @Override public void changedUpdate(DocumentEvent e) { profile.setProxyUser(proxyUserField.getText().trim()); }
         });
 
-     // Listener para proxyPasswordField
         proxyPasswordField.getDocument().addDocumentListener(new DocumentListener() {
             private void updatePass() {
-                // Criptografar a senha antes de salvar no objeto Profile
-                String plainPassword = new String(proxyPasswordField.getPassword());
-                if (plainPassword.isEmpty()) {
-                    profile.setProxyPassword(null); // Ou string vazia se preferir, mas null é mais limpo
+                String plain = new String(proxyPasswordField.getPassword());
+                if (plain.isEmpty()) {
+                    profile.setProxyPassword(null);
                 } else {
-                    String encryptedPassword = CryptoUtils.encrypt(plainPassword, minecraftLauncher);
-                    profile.setProxyPassword(encryptedPassword);
+                    profile.setProxyPassword(CryptoUtils.encrypt(plain, minecraftLauncher));
                 }
             }
-            @Override public void insertUpdate(DocumentEvent e) { updatePass(); }
-            @Override public void removeUpdate(DocumentEvent e) { updatePass(); }
+            @Override public void insertUpdate(DocumentEvent e)  { updatePass(); }
+            @Override public void removeUpdate(DocumentEvent e)  { updatePass(); }
             @Override public void changedUpdate(DocumentEvent e) { updatePass(); }
         });
     }
 
-    private void updateProfileFromFields() {
-        profile.setProxyEnabled(proxyEnabledCheckbox.isSelected()); // Já deve estar no listener do checkbox
-        profile.setProxyType((Profile.ProxyType) proxyTypeComboBox.getSelectedItem()); // Já deve estar no listener do combobox
-
-        profile.setProxyHost(proxyHostField.getText().trim());
-        try {
-            String portText = proxyPortField.getText().trim();
-            if (portText.isEmpty()) {
-                profile.setProxyPort(0); // Ou outro valor indicando não definido/inválido
-            } else {
-                profile.setProxyPort(Integer.parseInt(portText));
-            }
-        } catch (NumberFormatException e) {
-            profile.setProxyPort(0); // Tratar erro de conversão
-        }
-        profile.setProxyUser(proxyUserField.getText().trim());
-        profile.setProxyPassword(new String(proxyPasswordField.getPassword()));
-    }
-
-
     private void updateFieldsEnabledState() {
         boolean enabled = proxyEnabledCheckbox.isSelected();
-        for (Component comp : proxyComponents) {
-            comp.setEnabled(enabled);
-        }
-        // O tipo NONE desabilita os campos de host/porta/user/pass mesmo se o proxy principal estiver habilitado
-        if (enabled && proxyTypeComboBox.getSelectedItem() == Profile.ProxyType.NONE) {
-             proxyHostField.setEnabled(false);
-             proxyPortField.setEnabled(false);
-             proxyUserField.setEnabled(false);
-             proxyPasswordField.setEnabled(false);
-             proxyHostLabel.setEnabled(false);
-             proxyPortLabel.setEnabled(false);
-             proxyUserLabel.setEnabled(false);
-             proxyPasswordLabel.setEnabled(false);
-        }
-
-        // Listener adicional no ComboBox para reabilitar/desabilitar campos com base no tipo NONE
-         proxyTypeComboBox.removeItemListener(proxyTypeListener); // Remover para evitar duplicação
-         proxyTypeComboBox.addItemListener(proxyTypeListener);
+        for (Component comp : proxyComponents) comp.setEnabled(enabled);
     }
-    // Listener para o ComboBox de tipo de proxy, para habilitar/desabilitar campos
-    private final ItemListener proxyTypeListener = e -> {
-        if (e.getStateChange() == ItemEvent.SELECTED) {
-            boolean mainEnabled = proxyEnabledCheckbox.isSelected();
-            boolean typeAllowsFields = proxyTypeComboBox.getSelectedItem() != Profile.ProxyType.NONE;
-            boolean enableSubFields = mainEnabled && typeAllowsFields;
-
-            proxyHostField.setEnabled(enableSubFields);
-            proxyPortField.setEnabled(enableSubFields);
-            proxyUserField.setEnabled(enableSubFields);
-            proxyPasswordField.setEnabled(enableSubFields);
-            proxyHostLabel.setEnabled(enableSubFields);
-            proxyPortLabel.setEnabled(enableSubFields);
-            proxyUserLabel.setEnabled(enableSubFields);
-            proxyPasswordLabel.setEnabled(enableSubFields);
-        }
-    };
 }
