@@ -512,22 +512,26 @@ public class MacrosoftModpackBrowser extends JPanel {
     }
 
     private void waitAndShowEditor(Launcher launcher) {
-        javax.swing.Timer[] ref = new javax.swing.Timer[1];
+        javax.swing.Timer[] ref     = new javax.swing.Timer[1];
+        javax.swing.Timer[] timeout = new javax.swing.Timer[1];
+
         ref[0] = new javax.swing.Timer(200, e -> {
             if (!launcher.getProfileManager().getProfiles().isEmpty()) {
                 ref[0].stop();
+                timeout[0].stop();   // ← cancela o timeout ao ter sucesso
                 SwingUtilities.invokeLater(() -> {
                     Profile profile = launcher.getProfileManager().getSelectedProfile();
                     ProfileEditorPopup.showEditProfileDialog(launcher, profile);
                 });
             }
         });
-        javax.swing.Timer timeout = new javax.swing.Timer(10_000, e -> {
+
+        timeout[0] = new javax.swing.Timer(10_000, e -> {
             ref[0].stop();
             JOptionPane.showMessageDialog(parentFrame, "Tempo esgotado ao carregar perfis.", "Erro", JOptionPane.ERROR_MESSAGE);
         });
-        timeout.setRepeats(false);
-        timeout.start();
+        timeout[0].setRepeats(false);
+        timeout[0].start();
         ref[0].start();
     }
 
