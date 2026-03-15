@@ -102,8 +102,12 @@ public class MacrosoftModpackBrowser extends JPanel {
     private List<CardUi>       cardUiList = new ArrayList<>();
     private javax.swing.Timer  statePoller;
 
-    private String websiteLink = "https://www.macrosoft.website/";
-    private String discordLink = "https://discord.gg/t7WcjJ4";
+    private String  websiteLink        = "https://www.macrosoft.website/";
+    private String  discordLink        = "https://discord.gg/t7WcjJ4";
+    /** URL personalizada da API (persiste em api_server.txt). null = usar padrão. */
+    private String  customApiUrl       = null;
+    /** true quando a última tentativa de contatar a API falhou. */
+    private boolean lastLoadHadApiError = false;
 
     // ── Construtor ─────────────────────────────────────────────────────────
     public MacrosoftModpackBrowser(File macrosoftBaseDir, JFrame parentFrame, String[] launcherArgs) {
@@ -121,13 +125,20 @@ public class MacrosoftModpackBrowser extends JPanel {
         cardsPanel.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
         showLoadingState();     // GIF + texto enquanto carrega
 
-        JScrollPane scroll = new JScrollPane(cardsPanel);
+        // Wrapper BorderLayout garante que o cardsPanel (BoxLayout) preencha
+        // toda a largura do viewport — sem ele os cards ficam deslocados.
+        JPanel scrollWrapper = new JPanel(new BorderLayout());
+        scrollWrapper.setBackground(BG);
+        scrollWrapper.add(cardsPanel, BorderLayout.NORTH);
+
+        JScrollPane scroll = new JScrollPane(scrollWrapper);
         scroll.setBorder(null);
         scroll.getViewport().setBackground(BG);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         add(scroll, BorderLayout.CENTER);
         add(buildFooter(), BorderLayout.SOUTH);
 
+        loadCustomApiUrl();
         loadEntriesAsync();
         startStatePoller();
     }
@@ -215,6 +226,7 @@ public class MacrosoftModpackBrowser extends JPanel {
         footer.setBackground(BG);
         footer.add(linkButton("Website", () -> openLink(websiteLink)));
         footer.add(linkButton("Discord", () -> openLink(discordLink)));
+        footer.add(linkButton("⚙ Servidor", this::showServerSettings));
         return footer;
     }
 
@@ -233,17 +245,31 @@ public class MacrosoftModpackBrowser extends JPanel {
     // ── Carga assíncrona ───────────────────────────────────────────────────
     private void loadEntriesAsync() {
         new SwingWorker<List<ModpackEntry>, Void>() {
-            String site = websiteLink, disc = discordLink;
+            String  site     = websiteLink;
+            String  disc     = discordLink;
+            boolean apiError = false;
 
             @Override
             protected List<ModpackEntry> doInBackground() {
                 List<ModpackEntry> result = new ArrayList<>();
-                JSONObject api = null;
-                for (String url : API_URLS) {
-                    try { api = Connector.get(url); break; }
-                    catch (Exception e) { System.err.println("[Browser] API: " + e.getMessage()); }
+
+                // URLs a tentar: personalizada primeiro, depois padrões
+                List<String> urlsToTry = new ArrayList<>();
+                if (customApiUrl != null && !customApiUrl.isEmpty()) {
+                    urlsToTry.add(customApiUrl);
+                } else {
+                    for (String u : API_URLS) urlsToTry.add(u);
                 }
-                if (api != null) {
+
+                JSONObject api = null;
+                for (String url : urlsToTry) {
+                    try { api = Connector.get(url); break; }
+                    catch (Exception e) { System.err.println("[Browser] API falhou (" + url + "): " + e.getMessage()); }
+                }
+
+                if (api == null) {
+                    apiError = true;
+                } else {
                     site = api.optString("site", websiteLink);
                     disc = api.optString("discord", discordLink);
                     try {
@@ -263,6 +289,8 @@ public class MacrosoftModpackBrowser extends JPanel {
                         }
                     } catch (JSONException e) { System.err.println("[Browser] servers: " + e.getMessage()); }
                 }
+
+                // Diretórios locais
                 if (macrosoftBaseDir.exists() && macrosoftBaseDir.isDirectory()) {
                     File[] dirs = macrosoftBaseDir.listFiles(File::isDirectory);
                     if (dirs != null) {
@@ -275,6 +303,7 @@ public class MacrosoftModpackBrowser extends JPanel {
                         }
                     }
                 }
+
                 ImageIcon defIcon = loadDefaultIcon();
                 for (ModpackEntry entry : result) {
                     if (entry.iconUrl != null && !entry.iconUrl.isEmpty()) {
@@ -290,8 +319,10 @@ public class MacrosoftModpackBrowser extends JPanel {
 
             @Override
             protected void done() {
-                websiteLink = site; discordLink = disc;
-                try { entries = get(); } catch (Exception e) { entries = new ArrayList<>(); }
+                websiteLink         = site;
+                discordLink         = disc;
+                lastLoadHadApiError = apiError;
+                try { entries = get(); } catch (Exception e) { entries = new ArrayList<>(); lastLoadHadApiError = true; }
                 refreshCards();
             }
         }.execute();
@@ -302,8 +333,17 @@ public class MacrosoftModpackBrowser extends JPanel {
         cardsPanel.removeAll();
         cardUiList.clear();
 
+        // Banner sutil de erro de rede (só aparece quando a API falhou)
+        if (lastLoadHadApiError) {
+            cardsPanel.add(buildNetworkErrorBanner());
+            cardsPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        }
+
         if (entries.isEmpty()) {
-            JLabel empty = new JLabel("<html><center>Nenhuma modpack disponível.<br>Verifique sua conexão.</center></html>", SwingConstants.CENTER);
+            JLabel empty = new JLabel(lastLoadHadApiError
+                    ? "<html><center>Sem conexão com o servidor.<br>Nenhuma modpack local encontrada.</center></html>"
+                    : "<html><center>Nenhuma modpack disponível.<br>Verifique sua conexão.</center></html>",
+                    SwingConstants.CENTER);
             empty.setForeground(TEXT_TEAL);
             empty.setAlignmentX(Component.CENTER_ALIGNMENT);
             cardsPanel.add(Box.createVerticalGlue());
@@ -320,6 +360,42 @@ public class MacrosoftModpackBrowser extends JPanel {
         }
         cardsPanel.revalidate();
         cardsPanel.repaint();
+    }
+
+    /** Banner discreto exibido no topo da lista quando a API não responde. */
+    private JPanel buildNetworkErrorBanner() {
+        JPanel banner = new JPanel(new BorderLayout(8, 0)) {
+            @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); }
+        };
+        // DEVE ter o mesmo alinhamento que os cards (LEFT) para o BoxLayout
+        // Y_AXIS não deslocar os cards para a direita ao calcular o spanX.
+        banner.setAlignmentX(Component.LEFT_ALIGNMENT);
+        Color bannerBg  = new Color(60, 30, 20);
+        Color bannerBdr = new Color(140, 60, 30);
+        banner.setBackground(bannerBg);
+        banner.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(bannerBdr),
+            BorderFactory.createEmptyBorder(6, 12, 6, 12)));
+
+        JLabel msg = new JLabel("⚠  Sem conexão com o servidor — exibindo modpacks locais.");
+        msg.setForeground(new Color(255, 180, 100));
+        msg.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        banner.add(msg, BorderLayout.CENTER);
+
+        JButton reloadBtn = new JButton("↺ Recarregar");
+        reloadBtn.setFont(new Font("SansSerif", Font.BOLD, 11));
+        reloadBtn.setForeground(TEXT_WHITE);
+        reloadBtn.setBackground(bannerBdr);
+        reloadBtn.setOpaque(true);
+        reloadBtn.setFocusPainted(false);
+        reloadBtn.setBorderPainted(false);
+        reloadBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        reloadBtn.addActionListener(e -> {
+            showLoadingState();
+            loadEntriesAsync();
+        });
+        banner.add(reloadBtn, BorderLayout.EAST);
+        return banner;
     }
 
     private JPanel createCard(ModpackEntry entry) {
@@ -556,5 +632,71 @@ public class MacrosoftModpackBrowser extends JPanel {
     private void openLink(String url) {
         try { if (Desktop.isDesktopSupported()) Desktop.getDesktop().browse(new URI(url)); }
         catch (Exception ex) { JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE); }
+    }
+
+    // ── Configuração de servidor (para testes de rede) ─────────────────────
+    /** Arquivo onde a URL personalizada da API é persistida. */
+    private File apiServerFile() { return new File(macrosoftBaseDir, "api_server.txt"); }
+
+    private void loadCustomApiUrl() {
+        try {
+            File f = apiServerFile();
+            if (f.exists()) {
+                String val = new String(Files.readAllBytes(f.toPath())).trim();
+                customApiUrl = val.isEmpty() ? null : val;
+            }
+        } catch (IOException ignored) {}
+    }
+
+    private void saveCustomApiUrl(String url) {
+        try {
+            macrosoftBaseDir.mkdirs();
+            Files.write(apiServerFile().toPath(), (url == null ? "" : url.trim()).getBytes());
+        } catch (IOException ignored) {}
+    }
+
+    /**
+     * Diálogo de configuração da URL da API.
+     * Permite apontar para um servidor inexistente para testar comportamento offline.
+     */
+    private void showServerSettings() {
+        JPanel panel = new JPanel(new BorderLayout(0, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0));
+
+        JLabel desc = new JLabel("<html><b>URL da API do servidor de modpacks</b><br>"
+            + "<font color='gray'>Mantenha a URL padrão para usar o servidor oficial da Macrosoft<br>"
+            + "</font></html>");
+        panel.add(desc, BorderLayout.NORTH);
+
+        // Mostra URL personalizada ou a URL padrão, para o usuário saber qual é
+        String current = (customApiUrl != null) ? customApiUrl : API_URLS[0];
+        JTextField urlField = new JTextField(current, 38);
+        urlField.setFont(new Font("Monospaced", Font.PLAIN, 12));
+
+        JPanel fieldRow = new JPanel(new BorderLayout(4, 0));
+        fieldRow.add(new JLabel("URL: "), BorderLayout.WEST);
+        fieldRow.add(urlField, BorderLayout.CENTER);
+        panel.add(fieldRow, BorderLayout.CENTER);
+
+        String[] options = {"Salvar e recarregar", "Cancelar", "Restaurar padrão"};
+        int choice = JOptionPane.showOptionDialog(parentFrame, panel,
+            "⚙ Configuração do Servidor",
+            JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
+            null, options, options[0]);
+
+        if (choice == 0) {          // Salvar e recarregar
+            String val = urlField.getText().trim();
+            // Campo vazio ou igual à URL padrão → volta ao modo padrão (com fallback)
+            boolean isDefault = val.isEmpty() || val.equals(API_URLS[0]);
+            customApiUrl = isDefault ? null : val;
+            saveCustomApiUrl(customApiUrl != null ? customApiUrl : "");
+            showLoadingState();
+            loadEntriesAsync();
+        } else if (choice == 2) {   // Restaurar padrão
+            customApiUrl = null;
+            saveCustomApiUrl("");
+            showLoadingState();
+            loadEntriesAsync();
+        }
     }
 }
