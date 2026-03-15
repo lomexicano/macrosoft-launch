@@ -36,20 +36,23 @@ implements Comparable<Profile> {
 
 	// Novas Configurações de Proxy
 	public enum ProxyType {
-		NONE("Nenhum"), // Adicionado para desabilitar explicitamente
+		NONE("Nenhum"),
 		HTTP("HTTP"),
-		SOCKS("SOCKS");
+		SOCKS5("SOCKS5");
 
 		private final String displayName;
 		ProxyType(String displayName) { this.displayName = displayName; }
 		@Override public String toString() { return displayName; }
 		public static ProxyType fromString(String text) {
+			if (text == null) return NONE;
 			for (ProxyType b : ProxyType.values()) {
 				if (b.displayName.equalsIgnoreCase(text) || b.name().equalsIgnoreCase(text)) {
 					return b;
 				}
 			}
-			return NONE; // Default to NONE if not found
+			// Compatibilidade retroativa: "SOCKS" (sem versão) → SOCKS5
+			if ("socks".equalsIgnoreCase(text)) return SOCKS5;
+			return NONE;
 		}
 	}
 

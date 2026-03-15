@@ -76,6 +76,10 @@ public class Main {
         ArgumentAcceptingOptionSpec<Integer> proxyPortOption =
             parser.accepts("proxyPort").withRequiredArg()
                   .defaultsTo("8080", new String[0]).ofType(Integer.class);
+        ArgumentAcceptingOptionSpec<String> proxyUserOption =
+            parser.accepts("proxyUser").withRequiredArg();
+        ArgumentAcceptingOptionSpec<String> proxyPassOption =
+            parser.accepts("proxyPass").withRequiredArg();
         ArgumentAcceptingOptionSpec<File> workDirOption =
             parser.accepts("workDir").withRequiredArg()
                   .ofType(File.class).defaultsTo(Main.getWorkingDirectory(), new File[0]);
@@ -91,6 +95,21 @@ public class Main {
                 proxy = new Proxy(Proxy.Type.SOCKS,
                     new InetSocketAddress(hostName, (int) optionSet.valueOf(proxyPortOption)));
             } catch (Exception ignored) {}
+        }
+
+        // Configurar autenticação SOCKS5 para o processo atual (downloads do launcher)
+        String proxyUser = optionSet.valueOf(proxyUserOption);
+        String proxyPass = optionSet.valueOf(proxyPassOption);
+        if (proxyUser != null && !proxyUser.isEmpty()) {
+            final String finalUser = proxyUser;
+            final char[] finalPass = proxyPass != null ? proxyPass.toCharArray() : new char[0];
+            java.net.Authenticator.setDefault(new java.net.Authenticator() {
+                @Override
+                protected java.net.PasswordAuthentication getPasswordAuthentication() {
+                    return new java.net.PasswordAuthentication(finalUser, finalPass);
+                }
+            });
+            LOGGER.debug("Global SOCKS5 Authenticator set for user: " + finalUser);
         }
 
         File workingDirectory = optionSet.valueOf(workDirOption);
@@ -136,6 +155,10 @@ public class Main {
         ArgumentAcceptingOptionSpec<Integer> proxyPortOpt =
             parser.accepts("proxyPort").withRequiredArg()
                   .defaultsTo("8080", new String[0]).ofType(Integer.class);
+        ArgumentAcceptingOptionSpec<String> proxyUserOpt =
+            parser.accepts("proxyUser").withRequiredArg();
+        ArgumentAcceptingOptionSpec<String> proxyPassOpt =
+            parser.accepts("proxyPass").withRequiredArg();
         NonOptionArgumentSpec<String> nonOpt = parser.nonOptions();
         OptionSet opts = parser.parse(args);
 
@@ -146,6 +169,20 @@ public class Main {
                 proxy = new Proxy(Proxy.Type.SOCKS,
                     new InetSocketAddress(host, (int) opts.valueOf(proxyPortOpt)));
             } catch (Exception ignored) {}
+        }
+
+        // Configurar autenticação SOCKS5 para o processo atual
+        String proxyUser = opts.valueOf(proxyUserOpt);
+        String proxyPass = opts.valueOf(proxyPassOpt);
+        if (proxyUser != null && !proxyUser.isEmpty()) {
+            final String finalUser = proxyUser;
+            final char[] finalPass = proxyPass != null ? proxyPass.toCharArray() : new char[0];
+            java.net.Authenticator.setDefault(new java.net.Authenticator() {
+                @Override
+                protected java.net.PasswordAuthentication getPasswordAuthentication() {
+                    return new java.net.PasswordAuthentication(finalUser, finalPass);
+                }
+            });
         }
         if (opts.has("winTen")) {
             System.setProperty("os.name", "Windows 10");
