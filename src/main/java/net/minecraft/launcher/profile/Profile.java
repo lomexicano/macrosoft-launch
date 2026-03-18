@@ -63,6 +63,9 @@ implements Comparable<Profile> {
 	private String proxyUser;
 	private String proxyPassword;
 
+	/** Nickname por modpack/perfil — sobrescreve auth_player_name ao lançar. */
+	private String nickname;
+
 
 	public Profile() {
 	}
@@ -86,6 +89,8 @@ implements Comparable<Profile> {
 		this.proxyPort = copy.proxyPort;
 		this.proxyUser = copy.proxyUser;
 		this.proxyPassword = copy.proxyPassword;
+		// Nickname por perfil
+		this.nickname = copy.nickname;
 	}
 
     public Profile(String name) {
@@ -233,6 +238,16 @@ implements Comparable<Profile> {
         this.proxyPassword = proxyPassword;
     }
     // --- Fim Getters e Setters para Proxy ---
+
+    // --- Nickname por Perfil ---
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = (nickname != null && !nickname.trim().isEmpty()) ? nickname.trim() : null;
+    }
+    // --- Fim Nickname ---
 
     @Override
     public int compareTo(Profile o) {

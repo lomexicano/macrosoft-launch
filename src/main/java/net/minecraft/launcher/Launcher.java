@@ -277,34 +277,40 @@ public class Launcher {
     }
 
     public void ensureLoggedIn() {
+        // ── CORREÇÃO DE BUG: pendingPlayerName SEMPRE tem prioridade ──────────────
+        // Se um nome foi pré-configurado (ex: pelo MacrosoftModpackBrowser), ele DEVE
+        // sobrescrever qualquer auth salvo em sessão anterior no launcher_profiles.json.
+        // Antes desta correção, o bloco só era executado quando auth == null, permitindo
+        // que um auth antigo persistido em disco ignorasse o nick novo informado pelo usuário.
+        if (this.pendingPlayerName != null && !this.pendingPlayerName.isEmpty()) {
+            final String name    = this.pendingPlayerName;
+            final boolean doPlay = this.autoPlayOnLogin;
+            this.pendingPlayerName = null;
+            this.autoPlayOnLogin   = false;
+            try {
+                net.minecraft.launcher.ui.popups.login.MacrosoftMockAuth mockAuth =
+                    new net.minecraft.launcher.ui.popups.login.MacrosoftMockAuth(
+                        this.profileManager.getAuthDatabase().getAuthenticationService());
+                mockAuth.setUsername(name);
+                mockAuth.logIn();
+                String uuid = UUIDTypeAdapter.fromUUID(mockAuth.getSelectedProfile().getId());
+                this.profileManager.getAuthDatabase().register(uuid, mockAuth);
+                this.profileManager.setSelectedUser(uuid);
+                this.profileManager.saveProfiles();
+                this.profileManager.fireRefreshEvent();
+                LOGGER.info("Auth criado com sucesso para o nick: '{}'", name);
+                if (doPlay) {
+                    this.launchDispatcher.play();
+                }
+            } catch (AuthenticationException | IOException e) {
+                LOGGER.error("Auto-login falhou: {}", e.getMessage());
+                this.getUserInterface().showLoginPrompt();
+            }
+            return;
+        }
+        // ── Fluxo normal: sem pendingPlayerName ───────────────────────────────────
         UserAuthentication auth = this.profileManager.getAuthDatabase().getByUUID(this.profileManager.getSelectedUser());
         if (auth == null) {
-            // Auto-login com nome de player pré-configurado (modo headless)
-            if (this.pendingPlayerName != null && !this.pendingPlayerName.isEmpty()) {
-                final String name    = this.pendingPlayerName;
-                final boolean doPlay = this.autoPlayOnLogin;
-                this.pendingPlayerName = null;
-                this.autoPlayOnLogin   = false;
-                try {
-                    net.minecraft.launcher.ui.popups.login.MacrosoftMockAuth mockAuth =
-                        new net.minecraft.launcher.ui.popups.login.MacrosoftMockAuth(
-                            this.profileManager.getAuthDatabase().getAuthenticationService());
-                    mockAuth.setUsername(name);
-                    mockAuth.logIn();
-                    String uuid = UUIDTypeAdapter.fromUUID(mockAuth.getSelectedProfile().getId());
-                    this.profileManager.getAuthDatabase().register(uuid, mockAuth);
-                    this.profileManager.setSelectedUser(uuid);
-                    this.profileManager.saveProfiles();
-                    this.profileManager.fireRefreshEvent();
-                    if (doPlay) {
-                        this.launchDispatcher.play();
-                    }
-                } catch (AuthenticationException | IOException e) {
-                    LOGGER.error("Auto-login falhou: {}", e.getMessage());
-                    this.getUserInterface().showLoginPrompt();
-                }
-                return;
-            }
             this.getUserInterface().showLoginPrompt();
         } else if (!auth.isLoggedIn()) {
             if (auth.canLogIn()) {

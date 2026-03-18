@@ -92,8 +92,11 @@ public class MacrosoftModpackBrowser extends JPanel {
         final JButton actionBtn;   // único botão de ação, muda de estado
         final JButton configBtn;
         final JButton logsBtn;
-        CardUi(ModpackEntry e, JButton action, JButton cfg, JButton logs) {
+        final JButton nickBtn;     // botão 👤 para editar o nick desta modpack
+        final JLabel  nickLabel;   // exibe o nick atual no card
+        CardUi(ModpackEntry e, JButton action, JButton cfg, JButton logs, JButton nick, JLabel nickLbl) {
             this.entry = e; this.actionBtn = action; this.configBtn = cfg; this.logsBtn = logs;
+            this.nickBtn = nick; this.nickLabel = nickLbl;
         }
     }
 
@@ -102,7 +105,6 @@ public class MacrosoftModpackBrowser extends JPanel {
     private final JFrame   parentFrame;
     private final String[] launcherArgs;
     private final JPanel   cardsPanel;
-    private JTextField     playerNameField;
 
     private List<ModpackEntry> entries    = new ArrayList<>();
     private List<CardUi>       cardUiList = new ArrayList<>();
@@ -202,27 +204,7 @@ public class MacrosoftModpackBrowser extends JPanel {
             header.add(title);
         }
 
-        header.add(Box.createRigidArea(new Dimension(0, 10)));
-
-        JPanel nickRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-        nickRow.setBackground(BG);
-        JLabel nickLbl = new JLabel("Nick:");
-        nickLbl.setForeground(TEXT_TEAL);
-        nickLbl.setFont(new Font("SansSerif", Font.BOLD, 13));
-
-        playerNameField = new JTextField(loadPlayerName(), 18);
-        playerNameField.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        playerNameField.setBackground(new Color(50, 35, 65));
-        playerNameField.setForeground(TEXT_WHITE);
-        playerNameField.setCaretColor(TEXT_WHITE);
-        playerNameField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(CARD_BORDER),
-            BorderFactory.createEmptyBorder(4, 8, 4, 8)));
-
-        nickRow.add(nickLbl);
-        nickRow.add(playerNameField);
-        header.add(nickRow);
-        header.add(Box.createRigidArea(new Dimension(0, 4)));
+        header.add(Box.createRigidArea(new Dimension(0, 6)));
         return header;
     }
 
@@ -419,7 +401,8 @@ public class MacrosoftModpackBrowser extends JPanel {
             card.add(iconLbl, BorderLayout.WEST);
         }
 
-        JPanel info = new JPanel(new GridLayout(2, 1, 0, 2));
+        // Para modpacks baixadas exibimos 3 linhas: nome / autor / nick atual
+        JPanel info = new JPanel(new GridLayout(entry.isDownloaded ? 3 : 2, 1, 0, 2));
         info.setBackground(CARD_BG);
         JLabel nameLbl = new JLabel(entry.name);
         nameLbl.setForeground(TEXT_WHITE);
@@ -435,25 +418,48 @@ public class MacrosoftModpackBrowser extends JPanel {
         btnPanel.setBackground(CARD_BG);
 
         if (entry.isDownloaded) {
-            // Botão 📋 Logs (oculto até o launcher ser preparado)
+            // ── Nick label (3ª linha do info) ─────────────────────────────────────
+            String currentNick = loadNickForEntry(entry);
+            JLabel nickLabel = new JLabel(nickLabelText(currentNick));
+            nickLabel.setForeground(TEXT_TEAL);
+            nickLabel.setFont(nickLabel.getFont().deriveFont(Font.PLAIN, 11f));
+            info.add(nickLabel);
+
+            // ── Botão 📋 Logs ──────────────────────────────────────────────────────
             JButton logsBtn = styledButton("📋 Logs", BTN_LOGS);
             logsBtn.setToolTipText("Ver logs do launcher e do jogo");
             logsBtn.setVisible(false);
             logsBtn.addActionListener(e -> openLogWindow(entry));
 
-            // Botão ⚙ Configurar
+            // ── Botão 👤 Nick ──────────────────────────────────────────────────────
+            JButton nickBtn = styledButton("👤", BTN_CFG);
+            nickBtn.setToolTipText("Definir nome de usuário para esta modpack");
+            nickBtn.addActionListener(e -> {
+                String cur     = loadNickForEntry(entry);
+                String newNick = showNickPickerDialog(entry.name, cur);
+                if (newNick != null) {
+                    saveNickForEntry(entry, newNick);
+                    updateNickLabel(entry, newNick);
+                    // Nick trocado → descarta o launcher atual para forçar novo "Preparar"
+                    // com a autenticação correta do nick novo.
+                    resetEntryForNewNick(entry);
+                }
+            });
+
+            // ── Botão ⚙ Configurar ────────────────────────────────────────────────
             JButton configBtn = styledButton("⚙", BTN_CFG);
             configBtn.setToolTipText("Configurar perfil");
             configBtn.addActionListener(e -> configureModpack(entry));
 
-            // Botão de ação único (estado variável)
+            // ── Botão de ação único (estado variável) ─────────────────────────────
             JButton actionBtn = styledButton("Preparar", BTN_PREPARE);
             actionBtn.addActionListener(e -> onActionClicked(entry, actionBtn));
 
             btnPanel.add(logsBtn);
+            btnPanel.add(nickBtn);
             btnPanel.add(configBtn);
             btnPanel.add(actionBtn);
-            cardUiList.add(new CardUi(entry, actionBtn, configBtn, logsBtn));
+            cardUiList.add(new CardUi(entry, actionBtn, configBtn, logsBtn, nickBtn, nickLabel));
 
         } else if (entry.downloadUrl != null) {
             JButton dlBtn = styledButton("⬇  Baixar", BTN_DL);
@@ -489,14 +495,19 @@ public class MacrosoftModpackBrowser extends JPanel {
     }
 
     private void prepareEntry(ModpackEntry entry, JButton actionBtn) {
-        String playerName = playerNameField.getText().trim();
-        if (playerName.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Digite seu nick antes de preparar!", "Nick vazio", JOptionPane.WARNING_MESSAGE);
-            playerNameField.requestFocus();
-            return;
+        // ── Obtém o nick desta modpack específica ──────────────────────────────────
+        String nick = loadNickForEntry(entry);
+
+        if (nick == null || nick.isEmpty()) {
+            // Sem nick definido: abre o popup de escolha (obrigatório)
+            nick = showNickPickerDialog(entry.name, null);
+            if (nick == null) return; // usuário cancelou — não lança o jogo
+            saveNickForEntry(entry, nick);
+            updateNickLabel(entry, nick);
         }
-        savePlayerName(playerName);
-        // Feedback imediato
+
+        final String playerName = nick;
+        // Feedback imediato no botão
         applyButtonState(actionBtn, ActionState.PREPARING);
         // Reseta janela de logs para o novo launcher
         if (entry.logDialog != null) { entry.logDialog.dispose(); entry.logDialog = null; }
@@ -638,17 +649,119 @@ public class MacrosoftModpackBrowser extends JPanel {
 
     private boolean isDirectoryEmpty(File dir) { String[] f = dir.list(); return f == null || f.length == 0; }
 
-    private File playerNameFile() { return new File(macrosoftBaseDir, "player_name.txt"); }
-
-    private String loadPlayerName() {
-        try { if (playerNameFile().exists()) return new String(Files.readAllBytes(playerNameFile().toPath())).trim(); }
-        catch (IOException ignored) {}
-        return "";
+    // ── Nick por modpack ───────────────────────────────────────────────────
+    /** Arquivo onde o nick desta modpack é salvo: <macrosoftBaseDir>/<modpack>/nick.txt */
+    private File nickFileForEntry(ModpackEntry entry) {
+        return new File(macrosoftBaseDir, entry.name + File.separator + "nick.txt");
     }
 
-    private void savePlayerName(String name) {
-        try { macrosoftBaseDir.mkdirs(); Files.write(playerNameFile().toPath(), name.getBytes()); }
-        catch (IOException ignored) {}
+    /** Carrega o nick salvo para esta modpack, ou null se não definido. */
+    private String loadNickForEntry(ModpackEntry entry) {
+        try {
+            File f = nickFileForEntry(entry);
+            if (f.exists()) {
+                String v = new String(Files.readAllBytes(f.toPath())).trim();
+                return v.isEmpty() ? null : v;
+            }
+        } catch (IOException ignored) {}
+        return null;
+    }
+
+    /** Persiste o nick da modpack em disco. */
+    private void saveNickForEntry(ModpackEntry entry, String nick) {
+        try {
+            File f = nickFileForEntry(entry);
+            f.getParentFile().mkdirs();
+            Files.write(f.toPath(), nick.getBytes());
+        } catch (IOException ignored) {}
+    }
+
+    /** Texto exibido no label de nick do card. */
+    private String nickLabelText(String nick) {
+        return (nick != null && !nick.isEmpty()) ? "👤 " + nick : "👤 Sem nick definido";
+    }
+
+    /** Atualiza o nick label do card correspondente à entry. */
+    private void updateNickLabel(ModpackEntry entry, String nick) {
+        for (CardUi cu : cardUiList) {
+            if (cu.entry == entry && cu.nickLabel != null) {
+                cu.nickLabel.setText(nickLabelText(nick));
+                break;
+            }
+        }
+    }
+
+    /**
+     * Descarta o launcher atual da entry para que o processo de preparo seja
+     * refeito com o nick novo.
+     * – Se o jogo estiver JOGANDO: pede confirmação e encerra o processo.
+     * – Se estiver INSTALANDO: pede confirmação antes de cancelar.
+     * – Nos demais estados (PREPARANDO / PRONTO): reseta silenciosamente.
+     */
+    private void resetEntryForNewNick(ModpackEntry entry) {
+        if (entry.playLauncher == null) return; // já está no estado PREPARE, nada a fazer
+
+        ActionState state = getActionState(entry);
+
+        if (state == ActionState.PLAYING) {
+            int opt = JOptionPane.showConfirmDialog(parentFrame,
+                "O jogo está em execução.\nPara aplicar o novo nick, o processo será encerrado. Deseja continuar?",
+                "Jogo em execução", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (opt != JOptionPane.YES_OPTION) return;
+            entry.playLauncher.getLaunchDispatcher().stopAll();
+
+        } else if (state == ActionState.DOWNLOADING) {
+            int opt = JOptionPane.showConfirmDialog(parentFrame,
+                "Uma instalação está em andamento.\nPara aplicar o novo nick, o processo será reiniciado. Deseja continuar?",
+                "Instalação em andamento", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (opt != JOptionPane.YES_OPTION) return;
+        }
+        // PREPARING / READY / PLAYING (após parar) / DOWNLOADING (após confirmar): descarta o launcher
+        entry.playLauncher = null;
+        if (entry.logDialog != null) {
+            entry.logDialog.dispose();
+            entry.logDialog = null;
+        }
+        // O state poller detecta playLauncher == null e reverte o botão para "Preparar"
+    }
+
+    /**
+     * Exibe popup modal para o usuário escolher/alterar o nick de uma modpack.
+     * Valida: não vazio, sem espaços, entre 3 e 16 caracteres.
+     * Retorna o nick escolhido, ou null se cancelado.
+     */
+    private String showNickPickerDialog(String modpackName, String currentNick) {
+        while (true) {
+            Object input = JOptionPane.showInputDialog(
+                parentFrame,
+                "<html><b>Nome de usuário para a modpack:</b> " + modpackName + "<br>"
+                    + "<font color='gray'>Entre 3 e 16 caracteres, sem espaços.</font></html>",
+                "👤 Usuário da Modpack",
+                JOptionPane.PLAIN_MESSAGE,
+                null, null,
+                currentNick != null ? currentNick : "");
+
+            if (input == null) return null; // usuário clicou em Cancelar
+
+            String nick = input.toString().trim();
+
+            if (nick.isEmpty()) {
+                JOptionPane.showMessageDialog(parentFrame,
+                    "O nome não pode estar vazio!", "Nome inválido", JOptionPane.WARNING_MESSAGE);
+                continue;
+            }
+            if (nick.contains(" ")) {
+                JOptionPane.showMessageDialog(parentFrame,
+                    "O nome não pode conter espaços!", "Nome inválido", JOptionPane.WARNING_MESSAGE);
+                continue;
+            }
+            if (nick.length() < 3 || nick.length() > 16) {
+                JOptionPane.showMessageDialog(parentFrame,
+                    "O nome deve ter entre 3 e 16 caracteres!", "Nome inválido", JOptionPane.WARNING_MESSAGE);
+                continue;
+            }
+            return nick;
+        }
     }
 
     // ── Janela de logs ─────────────────────────────────────────────────────

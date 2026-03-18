@@ -211,10 +211,10 @@ implements GameProcessRunnable {
         Proxy proxyToUse = this.getLauncher().getProxy();
         PasswordAuthentication proxyAuthToUse = this.getLauncher().getProxyAuth();
         // Guarda os dados para reutilizar na Fase 2 (game args, após main class)
-        String  ppHost  = null;
-        int     ppPort  = 0;
-        String  ppUser  = null;
-        String  ppPass  = null;
+        String  ppHost   = null;
+        int     ppPort   = 0;
+        String  ppUser   = null;
+        String  ppPass   = null;
         boolean ppSocks5 = false;
         boolean ppValid  = false;
 
@@ -226,31 +226,60 @@ implements GameProcessRunnable {
                 ppHost   = host;
                 ppPort   = port;
                 ppUser   = selectedProfile.getProxyUser();
-                // A senha é armazenada encriptada no perfil — precisa descriptografar antes de usar
-                ppPass   = net.minecraft.launcher.utils.CryptoUtils.decrypt(
-                               selectedProfile.getProxyPassword(), this.minecraftLauncher);
+
+                // Descriptografar senha — fallback para texto-plano se decrypt falhar
+                String rawPass = selectedProfile.getProxyPassword();
+                if (rawPass != null && !rawPass.isEmpty()) {
+                    ppPass = net.minecraft.launcher.utils.CryptoUtils.decrypt(rawPass, this.minecraftLauncher);
+                    if (ppPass == null) {
+                        // Decrypt falhou (chave mudou?); tenta usar o valor cru como fallback
+                        LOGGER.warn("Falha ao descriptografar senha do proxy; tentando usar valor como texto plano.");
+                        ppPass = rawPass;
+                    }
+                } else {
+                    ppPass = "";
+                }
+
                 ppValid  = true;
                 proxyToUse = new Proxy(ppSocks5 ? Proxy.Type.SOCKS : Proxy.Type.HTTP,
                                        new InetSocketAddress(ppHost, ppPort));
                 LOGGER.info("Proxy de perfil (" + (ppSocks5 ? "SOCKS5" : "HTTP") + "): "
                             + ppHost + ":" + ppPort);
 
-                // Propriedades JVM — adicionadas AQUI (antes do main class) ✓
+                // ── JVM system properties (antes do main class) ──────────────────────
                 if (ppSocks5) {
                     processBuilder.withArguments("-DsocksProxyHost=" + ppHost);
                     processBuilder.withArguments("-DsocksProxyPort=" + ppPort);
-                    if (ppUser != null && !ppUser.isEmpty()) {
-                        processBuilder.withArguments("-Djava.net.socks.username=" + ppUser);
-                        if (ppPass != null)
-                            processBuilder.withArguments("-Djava.net.socks.password=" + ppPass);
-                    }
                 } else {
                     processBuilder.withArguments("-Dhttp.proxyHost=" + ppHost);
                     processBuilder.withArguments("-Dhttp.proxyPort=" + ppPort);
                     if (ppUser != null && !ppUser.isEmpty()) {
                         processBuilder.withArguments("-Dhttp.proxyUser=" + ppUser);
-                        if (ppPass != null)
+                        if (!ppPass.isEmpty())
                             processBuilder.withArguments("-Dhttp.proxyPassword=" + ppPass);
+                    }
+                }
+
+                // ── Java Agent: instala Authenticator SOCKS5 no processo filho ────────
+                // O agente lê as propriedades abaixo e chama Authenticator.setDefault()
+                // antes de qualquer classe do Minecraft ser carregada.
+                if (ppSocks5 && ppUser != null && !ppUser.isEmpty()) {
+                    try {
+                        java.net.URL agentLoc = net.minecraft.launcher.game.MinecraftGameRunner.class
+                                .getProtectionDomain().getCodeSource().getLocation();
+                        java.io.File agentJar = new java.io.File(agentLoc.toURI());
+                        if (agentJar.isFile() && agentJar.getName().endsWith(".jar")) {
+                            processBuilder.withArguments("-javaagent:" + agentJar.getAbsolutePath());
+                            processBuilder.withArguments("-Dnet.minecraft.socks.user=" + ppUser);
+                            processBuilder.withArguments("-Dnet.minecraft.socks.pass=" + ppPass);
+                            LOGGER.info("SOCKS5 agent injetado: " + agentJar.getName()
+                                        + " para usuário: " + ppUser);
+                        } else {
+                            LOGGER.warn("Launcher não está rodando de um JAR — agente SOCKS5 não injetado. "
+                                      + "Use --proxyUser/Pass ou execute a partir do JAR compilado.");
+                        }
+                    } catch (Exception agentEx) {
+                        LOGGER.warn("Não foi possível injetar agente SOCKS5: " + agentEx.getMessage());
                     }
                 }
             } else {
@@ -262,14 +291,15 @@ implements GameProcessRunnable {
         LOGGER.info("Half command: " + StringUtils.join(processBuilder.getFullCommands(), " "));
         this.getVersion().addArguments(ArgumentType.GAME, featureMatcher, processBuilder, argumentsSubstitutor);
 
-        // ── Fase 2: Authenticator (JVM atual) + game CLI args (--proxyHost) ─────────────
+        // ── Fase 2: Authenticator no launcher (para downloads) + game CLI args ──────────
         // O Minecraft (1.6.4+) lê --proxyHost/--proxyPort e cria internamente um
         // Proxy.Type.SOCKS que é passado ao NetworkManager/Netty para conexões a servidores.
-        // Sem esses args o jogo usa conexão direta mesmo com -DsocksProxyHost configurado.
+        // --proxyUser/--proxyPass acionam Authenticator.setDefault() dentro do próprio jogo.
         if (ppValid) {
-            if (ppUser != null && !ppUser.isEmpty() && ppPass != null) {
+            if (ppUser != null && !ppUser.isEmpty()) {
+                // Instala Authenticator no launcher (para downloads/auth do launcher)
                 final String fu = ppUser;
-                final char[] fp = ppPass.toCharArray();
+                final char[] fp = (ppPass != null ? ppPass : "").toCharArray();
                 proxyAuthToUse = new PasswordAuthentication(fu, fp);
                 java.net.Authenticator.setDefault(new java.net.Authenticator() {
                     @Override
@@ -277,22 +307,24 @@ implements GameProcessRunnable {
                         return new PasswordAuthentication(fu, new String(fp).toCharArray());
                     }
                 });
-                LOGGER.info("Authenticator SOCKS5 registrado para usuário: " + fu);
+                LOGGER.info("Authenticator SOCKS5 registrado no launcher para: " + fu);
             } else {
                 proxyAuthToUse = null;
                 java.net.Authenticator.setDefault(null);
             }
-            // Game args: o Minecraft lê estes e cria Proxy.Type.SOCKS para o Netty
+
+            // Game args: o Minecraft lê e configura seu próprio proxy/Authenticator
             processBuilder.withArguments("--proxyHost", ppHost);
             processBuilder.withArguments("--proxyPort", String.valueOf(ppPort));
             if (ppUser != null && !ppUser.isEmpty()) {
                 processBuilder.withArguments("--proxyUser", ppUser);
-                if (ppPass != null)
-                    processBuilder.withArguments("--proxyPass", ppPass);
+                // Sempre passa --proxyPass (mesmo vazio) para que Minecraft instale o Authenticator
+                processBuilder.withArguments("--proxyPass", ppPass != null ? ppPass : "");
             }
         } else if (proxyToUse != Proxy.NO_PROXY) {
             LOGGER.info("Usando proxy global do launcher.");
             InetSocketAddress address = (InetSocketAddress) proxyToUse.address();
+
             processBuilder.withArguments("--proxyHost", address.getHostName());
             processBuilder.withArguments("--proxyPort", Integer.toString(address.getPort()));
             if (proxyAuthToUse != null) {
@@ -370,14 +402,19 @@ implements GameProcessRunnable {
 
     public StrSubstitutor createArgumentsSubstitutor(CompleteMinecraftVersion version, Profile selectedProfile, File gameDirectory, File assetsDirectory, UserAuthentication authentication) {
         HashMap<String, String> map = new HashMap<String, String>();
-        map.put("auth_access_token", authentication.getAuthenticatedToken());
+        String authToken = authentication.getAuthenticatedToken();
+        map.put("auth_access_token", authToken != null ? authToken : "0");
         map.put("user_properties", new GsonBuilder().registerTypeAdapter((Type)((Object)PropertyMap.class), new LegacyPropertyMapSerializer()).create().toJson(authentication.getUserProperties()));
         map.put("user_property_map", new GsonBuilder().registerTypeAdapter((Type)((Object)PropertyMap.class), new PropertyMap.Serializer()).create().toJson(authentication.getUserProperties()));
         if (authentication.isLoggedIn() && authentication.canPlayOnline()) {
             if (authentication instanceof YggdrasilUserAuthentication) {
-                map.put("auth_session", String.format("token:%s:%s", authentication.getAuthenticatedToken(), UUIDTypeAdapter.fromUUID(authentication.getSelectedProfile().getId())));
+                String tok = authentication.getAuthenticatedToken();
+                map.put("auth_session", String.format("token:%s:%s",
+                        tok != null ? tok : "0",
+                        UUIDTypeAdapter.fromUUID(authentication.getSelectedProfile().getId())));
             } else {
-                map.put("auth_session", authentication.getAuthenticatedToken());
+                String tok = authentication.getAuthenticatedToken();
+                map.put("auth_session", tok != null ? tok : "0");
             }
         } else {
             map.put("auth_session", "-");
@@ -390,6 +427,24 @@ implements GameProcessRunnable {
             map.put("auth_player_name", "Player");
             map.put("auth_uuid", new UUID(0L, 0L).toString());
             map.put("user_type", UserType.LEGACY.getName());
+        }
+
+        // ── Nickname por perfil: sobrescreve auth_player_name (e UUID derivado) ──────────
+        // Prioridade: nickname do perfil > nome do GameProfile do login global
+        String profileNick = selectedProfile.getNickname();
+        if (profileNick != null && !profileNick.trim().isEmpty()) {
+            map.put("auth_player_name", profileNick.trim());
+            // UUID offline determinístico — mesma fórmula usada pelo Minecraft em modo offline:
+            // UUID.nameUUIDFromBytes("OfflinePlayer:<nick>")
+            try {
+                UUID offlineUUID = UUID.nameUUIDFromBytes(
+                        ("OfflinePlayer:" + profileNick.trim())
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                map.put("auth_uuid", UUIDTypeAdapter.fromUUID(offlineUUID));
+            } catch (Exception e) {
+                // ignora — mantém o UUID do GameProfile já colocado
+            }
+            LOGGER.info("Usando nickname de perfil: '" + profileNick.trim() + "'");
         }
         map.put("profile_name", selectedProfile.getName());
         map.put("version_name", version.getId());

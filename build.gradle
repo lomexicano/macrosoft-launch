@@ -38,4 +38,12 @@ dependencies {
 
 shadowJar {
     exclude '**/Log4j2Plugins.dat'
+    manifest {
+        attributes(
+            'Main-Class':               'net.minecraft.launcher.Main',
+            'Premain-Class':            'net.minecraft.launcher.utils.SocksAuthenticatorAgent',
+            'Can-Redefine-Classes':     'false',
+            'Can-Retransform-Classes':  'false'
+        )
+    }
 }
