@@ -432,7 +432,8 @@ public class MacrosoftModpackBrowser extends JPanel {
             logsBtn.addActionListener(e -> openLogWindow(entry));
 
             // ── Botão 👤 Nick ──────────────────────────────────────────────────────
-            JButton nickBtn = styledButton("👤", BTN_CFG);
+            JButton nickBtn = styledButton("", BTN_CFG);
+            nickBtn.setIcon(createUserIcon(14));
             nickBtn.setToolTipText("Definir nome de usuário para esta modpack");
             nickBtn.addActionListener(e -> {
                 String cur     = loadNickForEntry(entry);
@@ -442,7 +443,7 @@ public class MacrosoftModpackBrowser extends JPanel {
                     updateNickLabel(entry, newNick);
                     // Nick trocado → descarta o launcher atual para forçar novo "Preparar"
                     // com a autenticação correta do nick novo.
-                    resetEntryForNewNick(entry);
+                    resetEntryLauncher(entry);
                 }
             });
 
@@ -519,10 +520,10 @@ public class MacrosoftModpackBrowser extends JPanel {
         if (entry.configureLauncher == null) {
             entry.configureLauncher = Main.launchModpack(entry.name, null, false, parentFrame, launcherArgs);
         }
-        waitAndShowEditor(entry.configureLauncher);
+        waitAndShowEditor(entry.configureLauncher, () -> resetEntryLauncher(entry));
     }
 
-    private void waitAndShowEditor(Launcher launcher) {
+    private void waitAndShowEditor(Launcher launcher, Runnable onSaved) {
         javax.swing.Timer[] ref     = new javax.swing.Timer[1];
         javax.swing.Timer[] timeout = new javax.swing.Timer[1];
 
@@ -532,7 +533,7 @@ public class MacrosoftModpackBrowser extends JPanel {
                 timeout[0].stop();   // ← cancela o timeout ao ter sucesso
                 SwingUtilities.invokeLater(() -> {
                     Profile profile = launcher.getProfileManager().getSelectedProfile();
-                    ProfileEditorPopup.showEditProfileDialog(launcher, profile);
+                    ProfileEditorPopup.showEditProfileDialog(launcher, profile, onSaved);
                 });
             }
         });
@@ -647,6 +648,31 @@ public class MacrosoftModpackBrowser extends JPanel {
         return null;
     }
 
+    /**
+     * Cria um ícone de usuário (silhueta de pessoa) desenhado via Graphics2D.
+     * Usa desenho vetorial para garantir renderização correta em qualquer SO/JVM,
+     * evitando a dependência de emojis que não renderizam no Java Swing do Linux.
+     */
+    private static ImageIcon createUserIcon(int size) {
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(Color.WHITE);
+        // Cabeça: círculo centrado no terço superior
+        int headDiam = Math.max(1, size * 5 / 12);
+        int headX    = (size - headDiam) / 2;
+        int headY    = size / 10;
+        g.fillOval(headX, headY, headDiam, headDiam);
+        // Corpo: semicírculo (ombros) no terço inferior
+        int bodyW = Math.max(1, size * 3 / 4);
+        int bodyH = Math.max(1, size / 2);
+        int bodyX = (size - bodyW) / 2;
+        int bodyY = size * 55 / 100;
+        g.fillArc(bodyX, bodyY, bodyW, bodyH, 0, 180);
+        g.dispose();
+        return new ImageIcon(img);
+    }
+
     private boolean isDirectoryEmpty(File dir) { String[] f = dir.list(); return f == null || f.length == 0; }
 
     // ── Nick por modpack ───────────────────────────────────────────────────
@@ -693,26 +719,26 @@ public class MacrosoftModpackBrowser extends JPanel {
 
     /**
      * Descarta o launcher atual da entry para que o processo de preparo seja
-     * refeito com o nick novo.
+     * refeito com as configurações novas (nick ou perfil alterado).
      * – Se o jogo estiver JOGANDO: pede confirmação e encerra o processo.
      * – Se estiver INSTALANDO: pede confirmação antes de cancelar.
      * – Nos demais estados (PREPARANDO / PRONTO): reseta silenciosamente.
      */
-    private void resetEntryForNewNick(ModpackEntry entry) {
+    private void resetEntryLauncher(ModpackEntry entry) {
         if (entry.playLauncher == null) return; // já está no estado PREPARE, nada a fazer
 
         ActionState state = getActionState(entry);
 
         if (state == ActionState.PLAYING) {
             int opt = JOptionPane.showConfirmDialog(parentFrame,
-                "O jogo está em execução.\nPara aplicar o novo nick, o processo será encerrado. Deseja continuar?",
+                "O jogo está em execução.\nPara aplicar as alterações, o processo será encerrado. Deseja continuar?",
                 "Jogo em execução", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
             if (opt != JOptionPane.YES_OPTION) return;
             entry.playLauncher.getLaunchDispatcher().stopAll();
 
         } else if (state == ActionState.DOWNLOADING) {
             int opt = JOptionPane.showConfirmDialog(parentFrame,
-                "Uma instalação está em andamento.\nPara aplicar o novo nick, o processo será reiniciado. Deseja continuar?",
+                "Uma instalação está em andamento.\nPara aplicar as alterações, o processo será reiniciado. Deseja continuar?",
                 "Instalação em andamento", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
             if (opt != JOptionPane.YES_OPTION) return;
         }

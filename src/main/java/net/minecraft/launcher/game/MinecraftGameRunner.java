@@ -247,9 +247,20 @@ implements GameProcessRunnable {
                             + ppHost + ":" + ppPort);
 
                 // ── JVM system properties (antes do main class) ──────────────────────
+                // Estas propriedades são lidas pela stack java.net de toda a JVM filho,
+                // incluindo conexões Netty do jogo. Devem vir ANTES da classe principal.
                 if (ppSocks5) {
+                    // Propriedades padrão SOCKS5 conforme Oracle Docs:
+                    // https://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html
                     processBuilder.withArguments("-DsocksProxyHost=" + ppHost);
                     processBuilder.withArguments("-DsocksProxyPort=" + ppPort);
+                    processBuilder.withArguments("-DsocksProxyVersion=5");
+                    if (ppUser != null && !ppUser.isEmpty()) {
+                        // java.net.socks.username/password são as propriedades corretas
+                        // para autenticação SOCKS5 na JVM (substitui o Java Agent anterior)
+                        processBuilder.withArguments("-Djava.net.socks.username=" + ppUser);
+                        processBuilder.withArguments("-Djava.net.socks.password=" + (ppPass != null ? ppPass : ""));
+                    }
                 } else {
                     processBuilder.withArguments("-Dhttp.proxyHost=" + ppHost);
                     processBuilder.withArguments("-Dhttp.proxyPort=" + ppPort);
@@ -257,29 +268,6 @@ implements GameProcessRunnable {
                         processBuilder.withArguments("-Dhttp.proxyUser=" + ppUser);
                         if (!ppPass.isEmpty())
                             processBuilder.withArguments("-Dhttp.proxyPassword=" + ppPass);
-                    }
-                }
-
-                // ── Java Agent: instala Authenticator SOCKS5 no processo filho ────────
-                // O agente lê as propriedades abaixo e chama Authenticator.setDefault()
-                // antes de qualquer classe do Minecraft ser carregada.
-                if (ppSocks5 && ppUser != null && !ppUser.isEmpty()) {
-                    try {
-                        java.net.URL agentLoc = net.minecraft.launcher.game.MinecraftGameRunner.class
-                                .getProtectionDomain().getCodeSource().getLocation();
-                        java.io.File agentJar = new java.io.File(agentLoc.toURI());
-                        if (agentJar.isFile() && agentJar.getName().endsWith(".jar")) {
-                            processBuilder.withArguments("-javaagent:" + agentJar.getAbsolutePath());
-                            processBuilder.withArguments("-Dnet.minecraft.socks.user=" + ppUser);
-                            processBuilder.withArguments("-Dnet.minecraft.socks.pass=" + ppPass);
-                            LOGGER.info("SOCKS5 agent injetado: " + agentJar.getName()
-                                        + " para usuário: " + ppUser);
-                        } else {
-                            LOGGER.warn("Launcher não está rodando de um JAR — agente SOCKS5 não injetado. "
-                                      + "Use --proxyUser/Pass ou execute a partir do JAR compilado.");
-                        }
-                    } catch (Exception agentEx) {
-                        LOGGER.warn("Não foi possível injetar agente SOCKS5: " + agentEx.getMessage());
                     }
                 }
             } else {

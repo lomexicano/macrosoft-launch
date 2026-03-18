@@ -44,6 +44,8 @@ implements ActionListener {
     private final JButton saveButton   = new JButton("Salvar Perfil");
     private final JButton cancelButton = new JButton("Cancelar");
     private final JButton browseButton = new JButton("Abrir Pasta do Jogo");
+    /** Callback invocado após salvar o perfil com sucesso. Pode ser null. */
+    private Runnable onSaved = null;
     private final ProfileInfoPanel profileInfoPanel;
     private final ProfileJavaPanel javaInfoPanel;
     private final ProfileProxyPanel proxyInfoPanel;
@@ -105,6 +107,7 @@ implements ActionListener {
                 LOGGER.error("Couldn't save profiles whilst editing " + this.profile.getName(), (Throwable)ex);
             }
             this.closeWindow();
+            if (this.onSaved != null) this.onSaved.run();
         } else if (e.getSource() == this.browseButton) {
             OperatingSystem.openFolder(this.profile.getGameDir() == null ? this.minecraftLauncher.getLauncher().getWorkingDirectory() : this.profile.getGameDir());
         } else {
@@ -136,9 +139,14 @@ implements ActionListener {
     }
 
     public static void showEditProfileDialog(Launcher minecraftLauncher, Profile profile) {
+        showEditProfileDialog(minecraftLauncher, profile, null);
+    }
+
+    public static void showEditProfileDialog(Launcher minecraftLauncher, Profile profile, Runnable onSaved) {
         JFrame frame = ((SwingUserInterface)minecraftLauncher.getUserInterface()).getFrame();
         JDialog dialog = new JDialog(frame, "Editor de Perfil", true);
         ProfileEditorPopup editor = new ProfileEditorPopup(minecraftLauncher, profile);
+        editor.onSaved = onSaved;
         dialog.add(editor);
         dialog.pack();
         dialog.setLocationRelativeTo(frame);
