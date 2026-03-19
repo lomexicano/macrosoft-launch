@@ -247,7 +247,7 @@ implements GameProcessRunnable {
                             + ppHost + ":" + ppPort);
 
                 // ── JVM system properties (antes do main class) ──────────────────────
-                // Estas propriedades são lidas pela stack java.net de toda a JVM filho,
+                    // Estas propriedades são lidas pela stack java.net de toda a JVM filho,
                 // incluindo conexões Netty do jogo. Devem vir ANTES da classe principal.
                 if (ppSocks5) {
                     // Propriedades padrão SOCKS5 conforme Oracle Docs:
