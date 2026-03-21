@@ -14,7 +14,6 @@ import net.minecraft.launcher.game.MinecraftReleaseType;
 import net.minecraft.launcher.game.MinecraftReleaseTypeFactory;
 import net.minecraft.launcher.profile.LauncherVisibilityRule;
 
-import java.net.Proxy; // Para o tipo de proxy
 
 public class Profile
 implements Comparable<Profile> {
@@ -34,34 +33,6 @@ implements Comparable<Profile> {
 	private Boolean useHopperCrashService;
 	private LauncherVisibilityRule launcherVisibilityOnGameClose;
 
-	// Novas Configurações de Proxy
-	public enum ProxyType {
-		NONE("Nenhum"),
-		HTTP("HTTP"),
-		SOCKS5("SOCKS5");
-
-		private final String displayName;
-		ProxyType(String displayName) { this.displayName = displayName; }
-		@Override public String toString() { return displayName; }
-		public static ProxyType fromString(String text) {
-			if (text == null) return NONE;
-			for (ProxyType b : ProxyType.values()) {
-				if (b.displayName.equalsIgnoreCase(text) || b.name().equalsIgnoreCase(text)) {
-					return b;
-				}
-			}
-			// Compatibilidade retroativa: "SOCKS" (sem versão) → SOCKS5
-			if ("socks".equalsIgnoreCase(text)) return SOCKS5;
-			return NONE;
-		}
-	}
-
-	private boolean proxyEnabled = false;
-	private ProxyType proxyType = ProxyType.NONE;
-	private String proxyHost;
-	private int proxyPort; // Usar int para a porta
-	private String proxyUser;
-	private String proxyPassword;
 
 	/** Nickname por modpack/perfil — sobrescreve auth_player_name ao lançar. */
 	private String nickname;
@@ -82,13 +53,6 @@ implements Comparable<Profile> {
 		this.useHopperCrashService = copy.useHopperCrashService;
 		this.launcherVisibilityOnGameClose = copy.launcherVisibilityOnGameClose;
 
-		// Copiar os campos de proxy
-		this.proxyEnabled = copy.proxyEnabled;
-		this.proxyType = copy.proxyType;
-		this.proxyHost = copy.proxyHost;
-		this.proxyPort = copy.proxyPort;
-		this.proxyUser = copy.proxyUser;
-		this.proxyPassword = copy.proxyPassword;
 		// Nickname por perfil
 		this.nickname = copy.nickname;
 	}
@@ -189,55 +153,6 @@ implements Comparable<Profile> {
         this.launcherVisibilityOnGameClose = launcherVisibilityOnGameClose;
     }
     
- // --- Getters e Setters para Proxy ---
-    public boolean isProxyEnabled() {
-        return proxyEnabled;
-    }
-
-    public void setProxyEnabled(boolean proxyEnabled) {
-        this.proxyEnabled = proxyEnabled;
-    }
-
-    public ProxyType getProxyType() {
-        return Objects.firstNonNull(proxyType, ProxyType.NONE);
-    }
-
-    public void setProxyType(ProxyType proxyType) {
-        this.proxyType = proxyType;
-    }
-
-    public String getProxyHost() {
-        return proxyHost;
-    }
-
-    public void setProxyHost(String proxyHost) {
-        this.proxyHost = proxyHost;
-    }
-
-    public int getProxyPort() {
-        return proxyPort;
-    }
-
-    public void setProxyPort(int proxyPort) {
-        this.proxyPort = proxyPort;
-    }
-
-    public String getProxyUser() {
-        return proxyUser;
-    }
-
-    public void setProxyUser(String proxyUser) {
-        this.proxyUser = proxyUser;
-    }
-
-    public String getProxyPassword() {
-        return proxyPassword;
-    }
-
-    public void setProxyPassword(String proxyPassword) {
-        this.proxyPassword = proxyPassword;
-    }
-    // --- Fim Getters e Setters para Proxy ---
 
     // --- Nickname por Perfil ---
     public String getNickname() {

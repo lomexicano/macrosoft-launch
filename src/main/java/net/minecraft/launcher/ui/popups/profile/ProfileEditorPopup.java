@@ -30,7 +30,6 @@ import net.minecraft.launcher.profile.Profile;
 import net.minecraft.launcher.profile.ProfileManager;
 import net.minecraft.launcher.ui.popups.profile.ProfileInfoPanel;
 import net.minecraft.launcher.ui.popups.profile.ProfileJavaPanel;
-import net.minecraft.launcher.ui.popups.profile.ProfileProxyPanel; // Nova importação
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -48,7 +47,6 @@ implements ActionListener {
     private Runnable onSaved = null;
     private final ProfileInfoPanel profileInfoPanel;
     private final ProfileJavaPanel javaInfoPanel;
-    private final ProfileProxyPanel proxyInfoPanel;
 
     public ProfileEditorPopup(Launcher minecraftLauncher, Profile profile) {
         super(true);
@@ -57,7 +55,6 @@ implements ActionListener {
         this.profile           = new Profile(profile);
         this.profileInfoPanel  = new ProfileInfoPanel(this);
         this.javaInfoPanel     = new ProfileJavaPanel(this);
-        this.proxyInfoPanel    = new ProfileProxyPanel(this);
         this.saveButton.addActionListener(this);
         this.cancelButton.addActionListener(this);
         this.browseButton.addActionListener(this);
@@ -71,7 +68,6 @@ implements ActionListener {
         standardPanels.setLayout(new BoxLayout(standardPanels, 1));
         standardPanels.add(this.profileInfoPanel);
         standardPanels.add(this.javaInfoPanel);
-        standardPanels.add(this.proxyInfoPanel);
         this.add(standardPanels, BorderLayout.CENTER);
         JPanel buttonPannel = new JPanel();
         buttonPannel.setLayout(new BoxLayout(buttonPannel, BoxLayout.X_AXIS));

@@ -39,11 +39,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.lang.reflect.Type;
-import java.net.InetSocketAddress;
-import java.net.PasswordAuthentication;
-import java.net.Proxy;
-import java.net.SocketAddress;
-import java.nio.charset.Charset;
+import java.util.Collection;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
@@ -183,7 +179,9 @@ implements GameProcessRunnable {
                 OperatingSystem.getCurrentPlatform().getJavaDir());
         String javaExecutable = rawJavaPath.replace('\\', File.separatorChar);
         LOGGER.info("Java executable (normalized): " + javaExecutable);
-        GameProcessBuilder processBuilder = new GameProcessBuilder(javaExecutable);
+
+        final GameProcessBuilder processBuilder = new GameProcessBuilder(javaExecutable);
+
         processBuilder.withSysOutFilter(new Predicate<String>(){
 
             @Override
@@ -205,132 +203,11 @@ implements GameProcessRunnable {
         StrSubstitutor argumentsSubstitutor = this.createArgumentsSubstitutor(this.getVersion(), this.selectedProfile, gameDirectory, assetsDir, this.auth);
         this.getVersion().addArguments(ArgumentType.JVM, featureMatcher, processBuilder, argumentsSubstitutor);
 
-        // ── Fase 1: detecta proxy e adiciona propriedades JVM ANTES do main class ───────
-        // Propriedades -D precisam vir antes do nome da classe principal para serem
-        // interpretadas pela JVM; depois do main class viram args do jogo e são ignoradas.
-        Proxy proxyToUse = this.getLauncher().getProxy();
-        PasswordAuthentication proxyAuthToUse = this.getLauncher().getProxyAuth();
-        // Guarda os dados para reutilizar na Fase 2 (game args, após main class)
-        String  ppHost   = null;
-        int     ppPort   = 0;
-        String  ppUser   = null;
-        String  ppPass   = null;
-        boolean ppSocks5 = false;
-        boolean ppValid  = false;
-
-        if (selectedProfile.isProxyEnabled() && selectedProfile.getProxyType() != Profile.ProxyType.NONE) {
-            String host = selectedProfile.getProxyHost();
-            int    port = selectedProfile.getProxyPort();
-            if (host != null && !host.isEmpty() && port > 0) {
-                ppSocks5 = selectedProfile.getProxyType() == Profile.ProxyType.SOCKS5;
-                ppHost   = host;
-                ppPort   = port;
-                ppUser   = selectedProfile.getProxyUser();
-
-                // Descriptografar senha — fallback para texto-plano se decrypt falhar
-                String rawPass = selectedProfile.getProxyPassword();
-                if (rawPass != null && !rawPass.isEmpty()) {
-                    ppPass = net.minecraft.launcher.utils.CryptoUtils.decrypt(rawPass, this.minecraftLauncher);
-                    if (ppPass == null) {
-                        // Decrypt falhou (chave mudou?); tenta usar o valor cru como fallback
-                        LOGGER.warn("Falha ao descriptografar senha do proxy; tentando usar valor como texto plano.");
-                        ppPass = rawPass;
-                    }
-                } else {
-                    ppPass = "";
-                }
-
-                ppValid  = true;
-                proxyToUse = new Proxy(ppSocks5 ? Proxy.Type.SOCKS : Proxy.Type.HTTP,
-                                       new InetSocketAddress(ppHost, ppPort));
-                LOGGER.info("Proxy de perfil (" + (ppSocks5 ? "SOCKS5" : "HTTP") + "): "
-                            + ppHost + ":" + ppPort);
-
-                // ── JVM system properties (antes do main class) ──────────────────────
-                    // Estas propriedades são lidas pela stack java.net de toda a JVM filho,
-                // incluindo conexões Netty do jogo. Devem vir ANTES da classe principal.
-                if (ppSocks5) {
-                    // Propriedades padrão SOCKS5 conforme Oracle Docs:
-                    // https://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html
-                    processBuilder.withArguments("-DsocksProxyHost=" + ppHost);
-                    processBuilder.withArguments("-DsocksProxyPort=" + ppPort);
-                    processBuilder.withArguments("-DsocksProxyVersion=5");
-                    if (ppUser != null && !ppUser.isEmpty()) {
-                        // java.net.socks.username/password são as propriedades corretas
-                        // para autenticação SOCKS5 na JVM (substitui o Java Agent anterior)
-                        processBuilder.withArguments("-Djava.net.socks.username=" + ppUser);
-                        processBuilder.withArguments("-Djava.net.socks.password=" + (ppPass != null ? ppPass : ""));
-                    }
-                } else {
-                    processBuilder.withArguments("-Dhttp.proxyHost=" + ppHost);
-                    processBuilder.withArguments("-Dhttp.proxyPort=" + ppPort);
-                    if (ppUser != null && !ppUser.isEmpty()) {
-                        processBuilder.withArguments("-Dhttp.proxyUser=" + ppUser);
-                        if (!ppPass.isEmpty())
-                            processBuilder.withArguments("-Dhttp.proxyPassword=" + ppPass);
-                    }
-                }
-            } else {
-                LOGGER.warn("Proxy de perfil habilitado mas host/porta inválidos. Usando proxy global se houver.");
-            }
-        }
 
         processBuilder.withArguments(this.getVersion().getMainClass());
         LOGGER.info("Half command: " + StringUtils.join(processBuilder.getFullCommands(), " "));
         this.getVersion().addArguments(ArgumentType.GAME, featureMatcher, processBuilder, argumentsSubstitutor);
 
-        // ── Fase 2: Authenticator no launcher (para downloads) + game CLI args ──────────
-        // O Minecraft (1.6.4+) lê --proxyHost/--proxyPort e cria internamente um
-        // Proxy.Type.SOCKS que é passado ao NetworkManager/Netty para conexões a servidores.
-        // --proxyUser/--proxyPass acionam Authenticator.setDefault() dentro do próprio jogo.
-        if (ppValid) {
-            if (ppUser != null && !ppUser.isEmpty()) {
-                // Instala Authenticator no launcher (para downloads/auth do launcher)
-                final String fu = ppUser;
-                final char[] fp = (ppPass != null ? ppPass : "").toCharArray();
-                proxyAuthToUse = new PasswordAuthentication(fu, fp);
-                java.net.Authenticator.setDefault(new java.net.Authenticator() {
-                    @Override
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication(fu, new String(fp).toCharArray());
-                    }
-                });
-                LOGGER.info("Authenticator SOCKS5 registrado no launcher para: " + fu);
-            } else {
-                proxyAuthToUse = null;
-                java.net.Authenticator.setDefault(null);
-            }
-
-            // Game args: o Minecraft lê e configura seu próprio proxy/Authenticator
-            processBuilder.withArguments("--proxyHost", ppHost);
-            processBuilder.withArguments("--proxyPort", String.valueOf(ppPort));
-            if (ppUser != null && !ppUser.isEmpty()) {
-                processBuilder.withArguments("--proxyUser", ppUser);
-                // Sempre passa --proxyPass (mesmo vazio) para que Minecraft instale o Authenticator
-                processBuilder.withArguments("--proxyPass", ppPass != null ? ppPass : "");
-            }
-        } else if (proxyToUse != Proxy.NO_PROXY) {
-            LOGGER.info("Usando proxy global do launcher.");
-            InetSocketAddress address = (InetSocketAddress) proxyToUse.address();
-
-            processBuilder.withArguments("--proxyHost", address.getHostName());
-            processBuilder.withArguments("--proxyPort", Integer.toString(address.getPort()));
-            if (proxyAuthToUse != null) {
-                processBuilder.withArguments("--proxyUser", proxyAuthToUse.getUserName());
-                processBuilder.withArguments("--proxyPass", new String(proxyAuthToUse.getPassword()));
-            }
-        }
-        
-        /*
-        if (!proxy.equals(Proxy.NO_PROXY)) {
-            InetSocketAddress address = (InetSocketAddress)proxy.address();
-            processBuilder.withArguments("--proxyHost", address.getHostName());
-            processBuilder.withArguments("--proxyPort", Integer.toString(address.getPort()));
-            if (proxyAuth != null) {
-                processBuilder.withArguments("--proxyUser", proxyAuth.getUserName());
-                processBuilder.withArguments("--proxyPass", new String(proxyAuth.getPassword()));
-            }
-        }*/
         processBuilder.withArguments(this.additionalLaunchArgs);
         try {
             LOGGER.debug("Running " + StringUtils.join(processBuilder.getFullCommands(), " "));
@@ -352,6 +229,7 @@ implements GameProcessRunnable {
     protected CompleteMinecraftVersion getVersion() {
         return (CompleteMinecraftVersion)this.version;
     }
+
 
     private AssetIndex getAssetIndex() throws IOException {
         String assetVersion = this.getVersion().getAssetIndex().getId();
