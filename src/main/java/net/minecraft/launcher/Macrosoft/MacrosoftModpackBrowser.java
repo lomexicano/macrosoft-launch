@@ -116,6 +116,7 @@ public class MacrosoftModpackBrowser extends JPanel {
     private String  customApiUrl       = null;
     /** true quando a última tentativa de contatar a API falhou. */
     private boolean lastLoadHadApiError = false;
+    private List<JavaRuntimeManager.JavaRuntimeOption> javaRuntimeOptions = new ArrayList<>();
 
     // ── Construtor ─────────────────────────────────────────────────────────
     public MacrosoftModpackBrowser(File macrosoftBaseDir, JFrame parentFrame, String[] launcherArgs) {
@@ -212,10 +213,34 @@ public class MacrosoftModpackBrowser extends JPanel {
     private JPanel buildFooter() {
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 4));
         footer.setBackground(BG);
+        footer.add(createJavaManagerButton());
         footer.add(linkButton("Website", () -> openLink(websiteLink)));
         footer.add(linkButton("Discord", () -> openLink(discordLink)));
         footer.add(linkButton("⚙ Servidor", this::showServerSettings));
         return footer;
+    }
+
+    private JButton createJavaManagerButton() {
+        JButton button = linkButton("Java", this::showJavaManagerDialog);
+        try {
+            BufferedImage javaImage = ImageIO.read(getClass().getResource("/java.png"));
+            if (javaImage != null) {
+                Image scaled = javaImage.getScaledInstance(14, 14, Image.SCALE_SMOOTH);
+                button.setText("");
+                button.setIcon(new ImageIcon(scaled));
+                button.setToolTipText("Gerenciar Java");
+            }
+        } catch (Exception ignored) {}
+        return button;
+    }
+
+    private void showJavaManagerDialog() {
+        JavaRuntimeManagerDialog dialog = new JavaRuntimeManagerDialog(
+            parentFrame,
+            macrosoftBaseDir.toPath(),
+            javaRuntimeOptions
+        );
+        dialog.setVisible(true);
     }
 
     private JButton linkButton(String text, Runnable action) {
@@ -236,6 +261,7 @@ public class MacrosoftModpackBrowser extends JPanel {
             String  site     = websiteLink;
             String  disc     = discordLink;
             boolean apiError = false;
+            List<JavaRuntimeManager.JavaRuntimeOption> javaOptions = new ArrayList<>();
 
             @Override
             protected List<ModpackEntry> doInBackground() {
@@ -260,6 +286,7 @@ public class MacrosoftModpackBrowser extends JPanel {
                 } else {
                     site = api.optString("site", websiteLink);
                     disc = api.optString("discord", discordLink);
+                    javaOptions = JavaRuntimeManager.listOptionsFromApi(api);
                     try {
                         int v = api.getInt("version");
                         if (v > LauncherConstants.MACROSOFT_VERSION) {
@@ -310,6 +337,7 @@ public class MacrosoftModpackBrowser extends JPanel {
                 websiteLink         = site;
                 discordLink         = disc;
                 lastLoadHadApiError = apiError;
+                javaRuntimeOptions  = javaOptions;
                 try { entries = get(); } catch (Exception e) { entries = new ArrayList<>(); lastLoadHadApiError = true; }
                 refreshCards();
             }
