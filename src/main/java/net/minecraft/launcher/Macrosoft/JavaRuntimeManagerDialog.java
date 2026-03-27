@@ -15,6 +15,8 @@ public class JavaRuntimeManagerDialog extends JDialog {
     private final DefaultListModel<String> listModel = new DefaultListModel<String>();
     private final JList<String> runtimeList = new JList<String>(listModel);
     private List<Row> rows = new ArrayList<Row>();
+    private final JProgressBar installProgress = new JProgressBar(0, 100);
+    private final JLabel progressLabel = new JLabel("Pronto");
 
     private static class Row {
         final JavaRuntimeManager.JavaRuntimeOption option;
@@ -41,7 +43,23 @@ public class JavaRuntimeManagerDialog extends JDialog {
 
         runtimeList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         runtimeList.setVisibleRowCount(8);
-        add(new JScrollPane(runtimeList), BorderLayout.CENTER);
+        JPanel center = new JPanel(new BorderLayout(0, 8));
+        center.add(new JScrollPane(runtimeList), BorderLayout.CENTER);
+
+        installProgress.setStringPainted(true);
+        installProgress.setValue(0);
+        installProgress.setForeground(new Color(41, 171, 226));
+        installProgress.setBackground(new Color(36, 36, 36));
+        installProgress.setBorder(BorderFactory.createLineBorder(new Color(80, 80, 80)));
+
+        progressLabel.setFont(progressLabel.getFont().deriveFont(Font.BOLD, 12f));
+        progressLabel.setForeground(new Color(25, 110, 180));
+
+        JPanel progressPanel = new JPanel(new BorderLayout(0, 4));
+        progressPanel.add(progressLabel, BorderLayout.NORTH);
+        progressPanel.add(installProgress, BorderLayout.CENTER);
+        center.add(progressPanel, BorderLayout.SOUTH);
+        add(center, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         JButton refreshBtn = new JButton("Atualizar");
@@ -72,6 +90,9 @@ public class JavaRuntimeManagerDialog extends JDialog {
 
         if (platformOptions.isEmpty()) {
             listModel.addElement("Nenhuma opção de Java disponível para este sistema no JSON do servidor.");
+            installProgress.setValue(0);
+            installProgress.setString("Sem opções");
+            progressLabel.setText("Sem opções para esta plataforma");
             return;
         }
 
@@ -86,6 +107,9 @@ public class JavaRuntimeManagerDialog extends JDialog {
         if (!rows.isEmpty()) {
             runtimeList.setSelectedIndex(0);
         }
+        installProgress.setValue(0);
+        installProgress.setString("Pronto");
+        progressLabel.setText("Pronto");
     }
 
     private void installSelected() {
@@ -97,11 +121,21 @@ public class JavaRuntimeManagerDialog extends JDialog {
 
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
         runtimeList.setEnabled(false);
+        installProgress.setValue(0);
+        installProgress.setString("0%");
+        progressLabel.setText("Preparando instalação de " + option.id + "...");
 
         new SwingWorker<JavaRuntimeManager.InstalledRuntime, Void>() {
             @Override
             protected JavaRuntimeManager.InstalledRuntime doInBackground() throws Exception {
-                return JavaRuntimeManager.install(macrosoftBaseDir, option);
+                return JavaRuntimeManager.install(macrosoftBaseDir, option, (stage, percent, detail) ->
+                    SwingUtilities.invokeLater(() -> {
+                        installProgress.setValue(Math.max(0, Math.min(100, percent)));
+                        installProgress.setString(percent + "%");
+                        String icon = "download".equals(stage) ? "⬇" : ("extract".equals(stage) ? "📦" : "✅");
+                        progressLabel.setText(icon + " " + detail);
+                    })
+                );
             }
 
             @Override
@@ -110,10 +144,16 @@ public class JavaRuntimeManagerDialog extends JDialog {
                 runtimeList.setEnabled(true);
                 try {
                     JavaRuntimeManager.InstalledRuntime runtime = get();
+                    installProgress.setValue(100);
+                    installProgress.setString("100%");
+                    progressLabel.setText("✅ Instalação concluída");
                     JOptionPane.showMessageDialog(JavaRuntimeManagerDialog.this,
                         "Java instalado com sucesso:\n" + runtime.javaExecutable,
                         "Instalação concluída", JOptionPane.INFORMATION_MESSAGE);
                 } catch (Exception ex) {
+                    installProgress.setValue(0);
+                    installProgress.setString("Erro");
+                    progressLabel.setText("❌ Falha na instalação");
                     JOptionPane.showMessageDialog(JavaRuntimeManagerDialog.this,
                         "Falha ao instalar Java:\n" + ex.getMessage(),
                         "Erro", JOptionPane.ERROR_MESSAGE);

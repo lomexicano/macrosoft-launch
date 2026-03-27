@@ -9,7 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet; // Para ordenar e evitar duplicatas automaticamente
@@ -163,33 +163,58 @@ public class JavaLocator {
     }
 
     private static void discoverMacrosoftManagedJavas(Set<String> javaHomes) {
-        Path macrosoftJavaDir = Paths.get(System.getProperty("user.dir", "."), ".macrosoft", ".java");
-        if (!Files.isDirectory(macrosoftJavaDir)) {
-            return;
-        }
-        try (Stream<Path> installDirs = Files.list(macrosoftJavaDir)) {
-            installDirs.filter(Files::isDirectory).forEach(installDir -> {
-                try (Stream<Path> walk = Files.walk(installDir, 6)) {
-                    walk.filter(Files::isRegularFile)
-                        .filter(path -> {
-                            String name = path.getFileName().toString().toLowerCase();
-                            return name.equals("java") || name.equals("javaw.exe") || name.equals("java.exe");
-                        })
-                        .findFirst()
-                        .ifPresent(javaExe -> {
-                            Path bin = javaExe.getParent();
-                            if (bin != null && "bin".equalsIgnoreCase(bin.getFileName().toString())) {
-                                Path home = bin.getParent();
-                                if (home != null) {
-                                    addPathIfValidJavaHome(home.toString(), javaHomes);
+        for (Path macrosoftJavaDir : resolveMacrosoftJavaDirs()) {
+            if (!Files.isDirectory(macrosoftJavaDir)) {
+                continue;
+            }
+            try (Stream<Path> installDirs = Files.list(macrosoftJavaDir)) {
+                installDirs.filter(Files::isDirectory).forEach(installDir -> {
+                    try (Stream<Path> walk = Files.walk(installDir, 8)) {
+                        walk.filter(Files::isRegularFile)
+                            .filter(path -> {
+                                String name = path.getFileName().toString().toLowerCase();
+                                return name.equals("java") || name.equals("javaw.exe") || name.equals("java.exe");
+                            })
+                            .findFirst()
+                            .ifPresent(javaExe -> {
+                                Path bin = javaExe.getParent();
+                                if (bin != null && "bin".equalsIgnoreCase(bin.getFileName().toString())) {
+                                    Path home = bin.getParent();
+                                    if (home != null) {
+                                        addPathIfValidJavaHome(home.toString(), javaHomes);
+                                    }
                                 }
-                            }
-                        });
-                } catch (IOException ignored) {
-                }
-            });
-        } catch (IOException ignored) {
+                            });
+                    } catch (IOException ignored) {
+                    }
+                });
+            } catch (IOException ignored) {
+            }
         }
+    }
+
+    /**
+     * Resolve possíveis caminhos para ".macrosoft/.java" sem depender de um único cwd:
+     * - <user.dir>/.macrosoft/.java
+     * - <user.dir>/.java (caso user.dir já seja ".macrosoft")
+     * - sobe a árvore procurando um diretório chamado ".macrosoft" e usa "<found>/.java"
+     */
+    private static Set<Path> resolveMacrosoftJavaDirs() {
+        Set<Path> candidates = new LinkedHashSet<>();
+        Path cwd = Paths.get(System.getProperty("user.dir", ".")).toAbsolutePath().normalize();
+
+        candidates.add(cwd.resolve(".macrosoft").resolve(".java"));
+        candidates.add(cwd.resolve(".java"));
+
+        Path cursor = cwd;
+        for (int i = 0; i < 8 && cursor != null; i++) {
+            Path name = cursor.getFileName();
+            if (name != null && ".macrosoft".equalsIgnoreCase(name.toString())) {
+                candidates.add(cursor.resolve(".java"));
+            }
+            cursor = cursor.getParent();
+        }
+        return candidates;
     }
 
     private static void searchForJavaSubdirectories(Path directory, Set<String> javaHomes) {

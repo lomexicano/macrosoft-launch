@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -21,6 +22,10 @@ import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
 public final class JavaRuntimeManager {
+
+    public interface ProgressListener {
+        void onProgress(String stage, int percent, String detail);
+    }
 
     public static class JavaRuntimeOption {
         public final String id;
@@ -135,6 +140,10 @@ public final class JavaRuntimeManager {
     }
 
     public static InstalledRuntime install(Path macrosoftBaseDir, JavaRuntimeOption option) throws IOException {
+        return install(macrosoftBaseDir, option, (stage, percent, detail) -> {});
+    }
+
+    public static InstalledRuntime install(Path macrosoftBaseDir, JavaRuntimeOption option, ProgressListener listener) throws IOException {
         Path baseDir = javaBaseDir(macrosoftBaseDir);
         Files.createDirectories(baseDir);
 
@@ -142,8 +151,13 @@ public final class JavaRuntimeManager {
         Path tempExtract = Files.createTempDirectory(baseDir, ".tmp-java-");
 
         try {
-            download(option.url, tempArchive);
-            extractTarGz(tempArchive, tempExtract);
+            listener.onProgress("download", 0, "Iniciando download...");
+            download(option.url, tempArchive, listener);
+            listener.onProgress("download", 70, "Download concluído");
+
+            listener.onProgress("extract", 72, "Extraindo arquivos...");
+            extractTarGz(tempArchive, tempExtract, listener);
+            listener.onProgress("extract", 96, "Extração concluída");
 
             Path finalRuntimeDir = baseDir.resolve(option.id);
             deleteRecursively(finalRuntimeDir);
@@ -153,6 +167,7 @@ public final class JavaRuntimeManager {
             if (executable == null) {
                 throw new IOException("Java executável não encontrado após instalação: " + option.id);
             }
+            listener.onProgress("finalize", 100, "Instalação finalizada");
             return new InstalledRuntime(option.id, finalRuntimeDir, executable);
         } finally {
             Files.deleteIfExists(tempArchive);
@@ -174,19 +189,33 @@ public final class JavaRuntimeManager {
         return map;
     }
 
-    private static void download(String url, Path target) throws IOException {
-        try (InputStream in = new BufferedInputStream(new URL(url).openStream());
+    private static void download(String url, Path target, ProgressListener listener) throws IOException {
+        URLConnection connection = new URL(url).openConnection();
+        long total = connection.getContentLengthLong();
+        try (InputStream in = new BufferedInputStream(connection.getInputStream());
              OutputStream out = Files.newOutputStream(target)) {
             byte[] buffer = new byte[8192];
             int read;
+            long downloaded = 0L;
             while ((read = in.read(buffer)) != -1) {
                 out.write(buffer, 0, read);
+                downloaded += read;
+                int percent = 0;
+                String detail;
+                if (total > 0) {
+                    percent = (int) Math.min(70, (downloaded * 70) / total);
+                    detail = humanSize(downloaded) + " / " + humanSize(total);
+                } else {
+                    detail = humanSize(downloaded);
+                }
+                listener.onProgress("download", percent, "Baixando... " + detail);
             }
         }
     }
 
-    private static void extractTarGz(Path archive, Path targetDir) throws IOException {
-        try (InputStream fileIn = Files.newInputStream(archive);
+    private static void extractTarGz(Path archive, Path targetDir, ProgressListener listener) throws IOException {
+        long archiveSize = Files.size(archive);
+        try (InputStream fileIn = new ProgressInputStream(Files.newInputStream(archive));
              InputStream gzipIn = new GZIPInputStream(fileIn);
              TarArchiveInputStream tarIn = new TarArchiveInputStream(gzipIn)) {
             TarArchiveEntry entry;
@@ -201,7 +230,53 @@ public final class JavaRuntimeManager {
                     }
                     Files.copy(tarIn, outPath, StandardCopyOption.REPLACE_EXISTING);
                 }
+                long consumed = ((ProgressInputStream) fileIn).getReadBytes();
+                int percent = archiveSize > 0 ? 72 + (int) Math.min(24, (consumed * 24) / archiveSize) : 80;
+                listener.onProgress("extract", percent, "Extraindo: " + entry.getName());
             }
+        }
+    }
+
+    private static String humanSize(long bytes) {
+        double value = bytes;
+        String[] units = {"B", "KB", "MB", "GB"};
+        int index = 0;
+        while (value >= 1024 && index < units.length - 1) {
+            value /= 1024.0;
+            index++;
+        }
+        return String.format("%.1f %s", value, units[index]);
+    }
+
+    private static class ProgressInputStream extends InputStream {
+        private final InputStream delegate;
+        private long readBytes;
+
+        ProgressInputStream(InputStream delegate) {
+            this.delegate = delegate;
+        }
+
+        long getReadBytes() {
+            return readBytes;
+        }
+
+        @Override
+        public int read() throws IOException {
+            int value = delegate.read();
+            if (value != -1) readBytes++;
+            return value;
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            int count = delegate.read(b, off, len);
+            if (count > 0) readBytes += count;
+            return count;
+        }
+
+        @Override
+        public void close() throws IOException {
+            delegate.close();
         }
     }
 
