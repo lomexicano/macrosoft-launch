@@ -13,11 +13,14 @@ import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
@@ -215,6 +218,8 @@ public final class JavaRuntimeManager {
 
     private static void extractTarGz(Path archive, Path targetDir, ProgressListener listener) throws IOException {
         long archiveSize = Files.size(archive);
+        boolean posixSupported = targetDir.getFileSystem().supportedFileAttributeViews().contains("posix");
+
         try (InputStream fileIn = new ProgressInputStream(Files.newInputStream(archive));
              InputStream gzipIn = new GZIPInputStream(fileIn);
              TarArchiveInputStream tarIn = new TarArchiveInputStream(gzipIn)) {
@@ -230,11 +235,35 @@ public final class JavaRuntimeManager {
                     }
                     Files.copy(tarIn, outPath, StandardCopyOption.REPLACE_EXISTING);
                 }
+                // Restore Unix permissions stored in the tar entry (e.g. executable bit for `java`)
+                if (posixSupported && Files.exists(outPath)) {
+                    int mode = entry.getMode();
+                    if (mode != 0) {
+                        Files.setPosixFilePermissions(outPath, modeToPosixPermissions(mode));
+                    }
+                }
                 long consumed = ((ProgressInputStream) fileIn).getReadBytes();
                 int percent = archiveSize > 0 ? 72 + (int) Math.min(24, (consumed * 24) / archiveSize) : 80;
                 listener.onProgress("extract", percent, "Extraindo: " + entry.getName());
             }
         }
+    }
+
+    private static Set<PosixFilePermission> modeToPosixPermissions(int mode) {
+        Set<PosixFilePermission> perms = new HashSet<>();
+        // Owner
+        if ((mode & 0400) != 0) perms.add(PosixFilePermission.OWNER_READ);
+        if ((mode & 0200) != 0) perms.add(PosixFilePermission.OWNER_WRITE);
+        if ((mode & 0100) != 0) perms.add(PosixFilePermission.OWNER_EXECUTE);
+        // Group
+        if ((mode & 0040) != 0) perms.add(PosixFilePermission.GROUP_READ);
+        if ((mode & 0020) != 0) perms.add(PosixFilePermission.GROUP_WRITE);
+        if ((mode & 0010) != 0) perms.add(PosixFilePermission.GROUP_EXECUTE);
+        // Others
+        if ((mode & 0004) != 0) perms.add(PosixFilePermission.OTHERS_READ);
+        if ((mode & 0002) != 0) perms.add(PosixFilePermission.OTHERS_WRITE);
+        if ((mode & 0001) != 0) perms.add(PosixFilePermission.OTHERS_EXECUTE);
+        return perms;
     }
 
     private static String humanSize(long bytes) {

@@ -312,6 +312,7 @@ public class MacrosoftModpackBrowser extends JPanel {
                         for (File dir : dirs) {
                             if (isDirectoryEmpty(dir)) continue;
                             String n = dir.getName();
+                            if (n.startsWith(".")) continue; // pasta interna (ex: .java, .tmp-java-*)
                             boolean found = false;
                             for (ModpackEntry e : result) { if (e.name.equalsIgnoreCase(n)) { e.isDownloaded = true; found = true; break; } }
                             if (!found) { ModpackEntry loc = new ModpackEntry(n, null, "Local", null); loc.isDownloaded = true; result.add(loc); }
