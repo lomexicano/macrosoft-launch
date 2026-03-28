@@ -49,6 +49,7 @@ public class MacrosoftModpackBrowser extends JPanel {
     private static final Color BTN_CFG      = new Color(70, 60, 100);   // roxo: "⚙"
     private static final Color BTN_LOGS     = new Color(40, 80, 110);   // azul escuro: "📋 Logs"
     private static final Color BTN_DISABLED = new Color(55, 50, 65);    // cinza: estados de espera
+    private static final Color BTN_JAVA     = new Color(180, 110, 0);   // âmbar: botão Java
     private static final Color LINK_COLOR   = new Color(135, 206, 250);
 
     // ── API ────────────────────────────────────────────────────────────────
@@ -221,16 +222,17 @@ public class MacrosoftModpackBrowser extends JPanel {
     }
 
     private JButton createJavaManagerButton() {
-        JButton button = linkButton("Java", this::showJavaManagerDialog);
+        JButton button = styledButton("Java", BTN_JAVA);
+        button.setToolTipText("Gerenciar runtimes Java");
         try {
             BufferedImage javaImage = ImageIO.read(getClass().getResource("/java.png"));
             if (javaImage != null) {
-                Image scaled = javaImage.getScaledInstance(14, 14, Image.SCALE_SMOOTH);
-                button.setText("");
+                Image scaled = javaImage.getScaledInstance(16, 16, Image.SCALE_SMOOTH);
                 button.setIcon(new ImageIcon(scaled));
-                button.setToolTipText("Gerenciar Java");
+                button.setIconTextGap(6);
             }
         } catch (Exception ignored) {}
+        button.addActionListener(e -> showJavaManagerDialog());
         return button;
     }
 

@@ -1,6 +1,7 @@
 package net.minecraft.launcher.Macrosoft;
 
 import javax.swing.*;
+import javax.swing.border.Border;
 import java.awt.*;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -9,84 +10,127 @@ import java.util.Map;
 
 public class JavaRuntimeManagerDialog extends JDialog {
 
+    // ── Cores (espelham MacrosoftModpackBrowser) ───────────────────────────
+    private static final Color BG          = new Color(22, 13, 28);
+    private static final Color PANEL_BG    = new Color(35, 22, 45);
+    private static final Color BORDER_CLR  = new Color(70, 50, 90);
+    private static final Color TEXT_WHITE  = Color.WHITE;
+    private static final Color TEXT_TEAL   = new Color(1, 131, 129);
+    private static final Color TEXT_GRAY   = new Color(170, 170, 170);
+    private static final Color SEL_BG      = new Color(70, 50, 100);
+    private static final Color BTN_INSTALL = new Color(0, 110, 75);
+    private static final Color BTN_REMOVE  = new Color(180, 40, 40);
+    private static final Color BTN_NEUTRAL = new Color(55, 90, 140);
+    private static final Color BTN_CLOSE   = new Color(55, 50, 65);
+
+    // ── Estado ─────────────────────────────────────────────────────────────
     private final Path macrosoftBaseDir;
     private final List<JavaRuntimeManager.JavaRuntimeOption> platformOptions;
 
-    private final DefaultListModel<String> listModel = new DefaultListModel<String>();
-    private final JList<String> runtimeList = new JList<String>(listModel);
-    private List<Row> rows = new ArrayList<Row>();
-    private final JProgressBar installProgress = new JProgressBar(0, 100);
-    private final JLabel progressLabel = new JLabel("Pronto");
+    private final DefaultListModel<String> listModel    = new DefaultListModel<>();
+    private final JList<String>            runtimeList  = new JList<>(listModel);
+    private       List<Row>                rows         = new ArrayList<>();
+    private final JProgressBar             installProgress = new JProgressBar(0, 100);
+    private final JLabel                   progressLabel   = new JLabel("Pronto");
 
     private static class Row {
-        final JavaRuntimeManager.JavaRuntimeOption option;
-        final JavaRuntimeManager.InstalledRuntime installed;
-
-        Row(JavaRuntimeManager.JavaRuntimeOption option, JavaRuntimeManager.InstalledRuntime installed) {
-            this.option = option;
-            this.installed = installed;
+        final JavaRuntimeManager.JavaRuntimeOption  option;
+        final JavaRuntimeManager.InstalledRuntime   installed;
+        Row(JavaRuntimeManager.JavaRuntimeOption o, JavaRuntimeManager.InstalledRuntime i) {
+            this.option = o; this.installed = i;
         }
     }
 
+    // ── Construtor ─────────────────────────────────────────────────────────
     public JavaRuntimeManagerDialog(JFrame owner,
                                     Path macrosoftBaseDir,
                                     List<JavaRuntimeManager.JavaRuntimeOption> allApiOptions) {
         super(owner, "Gerenciar Java (Macrosoft)", true);
         this.macrosoftBaseDir = macrosoftBaseDir;
-        this.platformOptions = JavaRuntimeManager.filterForCurrentPlatform(allApiOptions);
+        this.platformOptions  = JavaRuntimeManager.filterForCurrentPlatform(allApiOptions);
 
-        setLayout(new BorderLayout(8, 8));
-        ((JComponent) getContentPane()).setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        // ── Painel raiz ────────────────────────────────────────────────────
+        JPanel root = new JPanel(new BorderLayout(8, 10));
+        root.setBackground(BG);
+        root.setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
+        setContentPane(root);
 
+        // ── Cabeçalho ──────────────────────────────────────────────────────
         JLabel desc = new JLabel("Selecione um Java da plataforma atual para instalar/remover.");
-        add(desc, BorderLayout.NORTH);
+        desc.setForeground(TEXT_TEAL);
+        desc.setFont(desc.getFont().deriveFont(Font.BOLD, 13f));
+        root.add(desc, BorderLayout.NORTH);
 
+        // ── Lista ──────────────────────────────────────────────────────────
         runtimeList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         runtimeList.setVisibleRowCount(8);
-        JPanel center = new JPanel(new BorderLayout(0, 8));
-        center.add(new JScrollPane(runtimeList), BorderLayout.CENTER);
+        runtimeList.setBackground(PANEL_BG);
+        runtimeList.setForeground(TEXT_WHITE);
+        runtimeList.setSelectionBackground(SEL_BG);
+        runtimeList.setSelectionForeground(TEXT_WHITE);
+        runtimeList.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        runtimeList.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
+        runtimeList.setCellRenderer(new DarkListCellRenderer());
 
+        JScrollPane scroll = new JScrollPane(runtimeList);
+        scroll.getViewport().setBackground(PANEL_BG);
+        scroll.setBorder(BorderFactory.createLineBorder(BORDER_CLR));
+        scroll.getVerticalScrollBar().setUI(new DarkScrollBarUI());
+        scroll.getHorizontalScrollBar().setUI(new DarkScrollBarUI());
+
+        // ── Barra de progresso ─────────────────────────────────────────────
         installProgress.setStringPainted(true);
         installProgress.setValue(0);
-        installProgress.setForeground(new Color(41, 171, 226));
-        installProgress.setBackground(new Color(36, 36, 36));
-        installProgress.setBorder(BorderFactory.createLineBorder(new Color(80, 80, 80)));
+        installProgress.setString("Pronto");
+        installProgress.setForeground(TEXT_TEAL);
+        installProgress.setBackground(new Color(40, 28, 52));
+        installProgress.setBorderPainted(false);
+        installProgress.setFont(new Font("SansSerif", Font.BOLD, 11));
 
-        progressLabel.setFont(progressLabel.getFont().deriveFont(Font.BOLD, 12f));
-        progressLabel.setForeground(new Color(25, 110, 180));
+        progressLabel.setFont(progressLabel.getFont().deriveFont(Font.PLAIN, 12f));
+        progressLabel.setForeground(TEXT_GRAY);
 
         JPanel progressPanel = new JPanel(new BorderLayout(0, 4));
-        progressPanel.add(progressLabel, BorderLayout.NORTH);
-        progressPanel.add(installProgress, BorderLayout.CENTER);
-        center.add(progressPanel, BorderLayout.SOUTH);
-        add(center, BorderLayout.CENTER);
+        progressPanel.setBackground(BG);
+        progressPanel.add(progressLabel,    BorderLayout.NORTH);
+        progressPanel.add(installProgress,  BorderLayout.CENTER);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        JButton refreshBtn = new JButton("Atualizar");
-        JButton installBtn = new JButton("Instalar");
-        JButton uninstallBtn = new JButton("Desinstalar");
-        JButton closeBtn = new JButton("Fechar");
+        JPanel center = new JPanel(new BorderLayout(0, 10));
+        center.setBackground(BG);
+        center.add(scroll,         BorderLayout.CENTER);
+        center.add(progressPanel,  BorderLayout.SOUTH);
+        root.add(center, BorderLayout.CENTER);
+
+        // ── Botões ─────────────────────────────────────────────────────────
+        JButton refreshBtn   = styledButton("↺ Atualizar",    BTN_NEUTRAL);
+        JButton installBtn   = styledButton("⬇ Instalar",     BTN_INSTALL);
+        JButton uninstallBtn = styledButton("🗑 Desinstalar", BTN_REMOVE);
+        JButton closeBtn     = styledButton("Fechar",          BTN_CLOSE);
 
         refreshBtn.addActionListener(e -> refreshList());
         installBtn.addActionListener(e -> installSelected());
         uninstallBtn.addActionListener(e -> uninstallSelected());
         closeBtn.addActionListener(e -> dispose());
 
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actions.setBackground(BG);
         actions.add(refreshBtn);
         actions.add(installBtn);
         actions.add(uninstallBtn);
         actions.add(closeBtn);
-        add(actions, BorderLayout.SOUTH);
+        root.add(actions, BorderLayout.SOUTH);
 
         refreshList();
-        setSize(700, 360);
+        setSize(720, 380);
         setLocationRelativeTo(owner);
     }
 
+    // ── Lógica (igual à original) ──────────────────────────────────────────
     private void refreshList() {
         listModel.clear();
-        rows = new ArrayList<Row>();
-        Map<String, JavaRuntimeManager.InstalledRuntime> installedById = JavaRuntimeManager.mapInstalledById(macrosoftBaseDir);
+        rows = new ArrayList<>();
+        Map<String, JavaRuntimeManager.InstalledRuntime> installedById =
+            JavaRuntimeManager.mapInstalledById(macrosoftBaseDir);
 
         if (platformOptions.isEmpty()) {
             listModel.addElement("Nenhuma opção de Java disponível para este sistema no JSON do servidor.");
@@ -98,15 +142,13 @@ public class JavaRuntimeManagerDialog extends JDialog {
 
         for (JavaRuntimeManager.JavaRuntimeOption option : platformOptions) {
             JavaRuntimeManager.InstalledRuntime installed = installedById.get(option.id);
-            String status = (installed == null) ? "[não instalado]" : "[instalado]";
-            String line = String.format("%s  %s  -  %s", status, option.id, option.url);
+            String status = (installed == null) ? "[ ]" : "[✔]";
+            String line   = String.format("%s  %-28s  %s", status, option.id, option.url);
             listModel.addElement(line);
             rows.add(new Row(option, installed));
         }
 
-        if (!rows.isEmpty()) {
-            runtimeList.setSelectedIndex(0);
-        }
+        if (!rows.isEmpty()) runtimeList.setSelectedIndex(0);
         installProgress.setValue(0);
         installProgress.setString("Pronto");
         progressLabel.setText("Pronto");
@@ -114,9 +156,7 @@ public class JavaRuntimeManagerDialog extends JDialog {
 
     private void installSelected() {
         Row row = selectedRow();
-        if (row == null) {
-            return;
-        }
+        if (row == null) return;
         final JavaRuntimeManager.JavaRuntimeOption option = row.option;
 
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
@@ -132,12 +172,11 @@ public class JavaRuntimeManagerDialog extends JDialog {
                     SwingUtilities.invokeLater(() -> {
                         installProgress.setValue(Math.max(0, Math.min(100, percent)));
                         installProgress.setString(percent + "%");
-                        String icon = "download".equals(stage) ? "⬇" : ("extract".equals(stage) ? "📦" : "✅");
-                        progressLabel.setText(icon + " " + detail);
+                        String icon = "download".equals(stage) ? "⬇" : "extract".equals(stage) ? "📦" : "✅";
+                        progressLabel.setText(icon + "  " + detail);
                     })
                 );
             }
-
             @Override
             protected void done() {
                 setCursor(Cursor.getDefaultCursor());
@@ -146,14 +185,14 @@ public class JavaRuntimeManagerDialog extends JDialog {
                     JavaRuntimeManager.InstalledRuntime runtime = get();
                     installProgress.setValue(100);
                     installProgress.setString("100%");
-                    progressLabel.setText("✅ Instalação concluída");
+                    progressLabel.setText("✅  Instalação concluída");
                     JOptionPane.showMessageDialog(JavaRuntimeManagerDialog.this,
                         "Java instalado com sucesso:\n" + runtime.javaExecutable,
                         "Instalação concluída", JOptionPane.INFORMATION_MESSAGE);
                 } catch (Exception ex) {
                     installProgress.setValue(0);
                     installProgress.setString("Erro");
-                    progressLabel.setText("❌ Falha na instalação");
+                    progressLabel.setText("❌  Falha na instalação");
                     JOptionPane.showMessageDialog(JavaRuntimeManagerDialog.this,
                         "Falha ao instalar Java:\n" + ex.getMessage(),
                         "Erro", JOptionPane.ERROR_MESSAGE);
@@ -165,33 +204,22 @@ public class JavaRuntimeManagerDialog extends JDialog {
 
     private void uninstallSelected() {
         Row row = selectedRow();
-        if (row == null) {
-            return;
-        }
+        if (row == null) return;
         if (row.installed == null) {
-            JOptionPane.showMessageDialog(this,
-                "Esse Java ainda não está instalado.",
+            JOptionPane.showMessageDialog(this, "Esse Java ainda não está instalado.",
                 "Desinstalação", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
-
         int confirm = JOptionPane.showConfirmDialog(this,
             "Deseja remover o Java '" + row.installed.id + "'?",
-            "Confirmar desinstalação",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE);
-        if (confirm != JOptionPane.YES_OPTION) {
-            return;
-        }
-
+            "Confirmar desinstalação", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION) return;
         try {
             JavaRuntimeManager.uninstall(macrosoftBaseDir, row.installed);
-            JOptionPane.showMessageDialog(this,
-                "Java removido com sucesso.",
+            JOptionPane.showMessageDialog(this, "Java removido com sucesso.",
                 "Desinstalação", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this,
-                "Falha ao remover Java:\n" + ex.getMessage(),
+            JOptionPane.showMessageDialog(this, "Falha ao remover Java:\n" + ex.getMessage(),
                 "Erro", JOptionPane.ERROR_MESSAGE);
         }
         refreshList();
@@ -200,11 +228,58 @@ public class JavaRuntimeManagerDialog extends JDialog {
     private Row selectedRow() {
         int index = runtimeList.getSelectedIndex();
         if (index < 0 || index >= rows.size()) {
-            JOptionPane.showMessageDialog(this,
-                "Selecione uma opção de Java na lista.",
+            JOptionPane.showMessageDialog(this, "Selecione uma opção de Java na lista.",
                 "Gerenciador de Java", JOptionPane.INFORMATION_MESSAGE);
             return null;
         }
         return rows.get(index);
+    }
+
+    // ── Utilitários de UI ──────────────────────────────────────────────────
+    private static JButton styledButton(String text, Color bg) {
+        JButton btn = new JButton(text);
+        btn.setBackground(bg);
+        btn.setForeground(TEXT_WHITE);
+        btn.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btn.setFocusPainted(false);
+        btn.setOpaque(true);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(bg.darker()),
+            BorderFactory.createEmptyBorder(6, 14, 6, 14)));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
+    /** Renderer que coloriza itens instalados em verde teal e não-instalados em cinza. */
+    private static class DarkListCellRenderer extends DefaultListCellRenderer {
+        private static final Color INSTALLED_FG = new Color(80, 200, 160);
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value,
+                                                       int index, boolean isSelected, boolean cellHasFocus) {
+            JLabel lbl = (JLabel) super.getListCellRendererComponent(
+                list, value, index, isSelected, cellHasFocus);
+            lbl.setBackground(isSelected ? SEL_BG : PANEL_BG);
+            String text = value == null ? "" : value.toString();
+            lbl.setForeground(isSelected ? TEXT_WHITE
+                : text.startsWith("[✔]") ? INSTALLED_FG : TEXT_GRAY);
+            lbl.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
+            return lbl;
+        }
+    }
+
+    /** ScrollBar mínima com fundo escuro. */
+    private static class DarkScrollBarUI extends javax.swing.plaf.basic.BasicScrollBarUI {
+        @Override protected void configureScrollBarColors() {
+            thumbColor      = new Color(90, 65, 120);
+            trackColor      = new Color(40, 28, 52);
+            thumbDarkShadowColor = trackColor;
+            thumbHighlightColor  = thumbColor;
+            thumbLightShadowColor = thumbColor;
+        }
+        @Override protected JButton createDecreaseButton(int o) { return invisibleButton(); }
+        @Override protected JButton createIncreaseButton(int o) { return invisibleButton(); }
+        private JButton invisibleButton() {
+            JButton b = new JButton(); b.setPreferredSize(new Dimension(0, 0)); return b;
+        }
     }
 }
