@@ -238,15 +238,16 @@ public class JavaRuntimeManagerDialog extends JDialog {
     // ── Utilitários de UI ──────────────────────────────────────────────────
     private static JButton styledButton(String text, Color bg) {
         JButton btn = new JButton(text);
-        btn.setBackground(bg);
         btn.setForeground(TEXT_WHITE);
         btn.setFont(new Font("SansSerif", Font.BOLD, 12));
         btn.setFocusPainted(false);
         btn.setOpaque(true);
-        btn.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(bg.darker()),
-            BorderFactory.createEmptyBorder(6, 14, 6, 14)));
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setRolloverEnabled(true);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setUI(new SolidButtonUI(bg));
+        btn.setBorder(BorderFactory.createEmptyBorder(7, 15, 7, 15));
         return btn;
     }
 
@@ -280,6 +281,68 @@ public class JavaRuntimeManagerDialog extends JDialog {
         @Override protected JButton createIncreaseButton(int o) { return invisibleButton(); }
         private JButton invisibleButton() {
             JButton b = new JButton(); b.setPreferredSize(new Dimension(0, 0)); return b;
+        }
+    }
+
+    // Classe interna para estilos dos botões, para não perder formatação ao abrir janela de configuração do perfil;
+    // É uma gambiarra braba;
+    private static class SolidButtonUI extends javax.swing.plaf.basic.BasicButtonUI {
+        private final Color baseColor;
+
+        public SolidButtonUI(Color baseColor) {
+            this.baseColor = baseColor;
+        }
+
+        @Override
+        public void installUI(JComponent c) {
+            super.installUI(c);
+            c.setOpaque(false);
+        }
+
+        @Override
+        public void paint(Graphics g, JComponent c) {
+            AbstractButton b = (AbstractButton) c;
+            ButtonModel model = b.getModel();
+
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            Color fill = baseColor;
+
+            if (!b.isEnabled()) {
+                fill = baseColor.darker().darker();
+            } else if (model.isPressed()) {
+                fill = baseColor.darker();
+            } else if (model.isRollover()) {
+                fill = brighten(baseColor, 18);
+            }
+
+            int arc = 8;
+
+            // fundo
+            g2.setColor(fill);
+            g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(), arc, arc);
+
+            // borda
+            g2.setColor(baseColor.darker());
+            g2.drawRoundRect(0, 0, c.getWidth() - 1, c.getHeight() - 1, arc, arc);
+
+            g2.dispose();
+
+            super.paint(g, c);
+        }
+
+        @Override
+        protected void paintButtonPressed(Graphics g, AbstractButton b) {
+            // não deixa o Swing pintar por cima
+        }
+
+        private static Color brighten(Color color, int amount) {
+            return new Color(
+                    Math.min(255, color.getRed() + amount),
+                    Math.min(255, color.getGreen() + amount),
+                    Math.min(255, color.getBlue() + amount)
+            );
         }
     }
 }
