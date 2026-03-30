@@ -59,7 +59,27 @@ public class JavaRuntimeManagerDialog extends JDialog {
         JLabel desc = new JLabel("Selecione um Java da plataforma atual para instalar/remover.");
         desc.setForeground(TEXT_TEAL);
         desc.setFont(desc.getFont().deriveFont(Font.BOLD, 13f));
-        root.add(desc, BorderLayout.NORTH);
+
+        // ── Aviso informativo ──────────────────────────────────────────────
+        JLabel notice = new JLabel(
+            "<html><b>ℹ️ Aviso:</b> As instalações de Java <b>não afetam o sistema operacional</b>. " +
+            "Elas ficam contidas exclusivamente em <code>.macrosoft/.java/</code> " +
+            "e são utilizadas apenas por este launcher.</html>"
+        );
+        notice.setForeground(new Color(200, 185, 220));
+        notice.setFont(notice.getFont().deriveFont(Font.PLAIN, 11f));
+        notice.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_CLR),
+            BorderFactory.createEmptyBorder(6, 10, 6, 10)
+        ));
+        notice.setOpaque(true);
+        notice.setBackground(PANEL_BG);
+
+        JPanel header = new JPanel(new BorderLayout(0, 8));
+        header.setBackground(BG);
+        header.add(desc,   BorderLayout.NORTH);
+        header.add(notice, BorderLayout.CENTER);
+        root.add(header, BorderLayout.NORTH);
 
         // ── Lista ──────────────────────────────────────────────────────────
         runtimeList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -142,8 +162,8 @@ public class JavaRuntimeManagerDialog extends JDialog {
 
         for (JavaRuntimeManager.JavaRuntimeOption option : platformOptions) {
             JavaRuntimeManager.InstalledRuntime installed = installedById.get(option.id);
-            String status = (installed == null) ? "[ ]" : "[✔]";
-            String line   = String.format("%s  %-28s  %s", status, option.id, option.url);
+            String status   = (installed == null) ? "[ ]" : "[✔]";
+            String line     = String.format("%s  %-28s  %s", status, option.id, urlResourceName(option.url));
             listModel.addElement(line);
             rows.add(new Row(option, installed));
         }
@@ -345,4 +365,23 @@ public class JavaRuntimeManagerDialog extends JDialog {
             );
         }
     }
+
+    // ── Utilitários ────────────────────────────────────────────────────────
+    /**
+     * Retorna apenas o nome do recurso de uma URL (último segmento do path).
+     * Se o path terminar com '/', usa o penúltimo segmento.
+     * Exemplo: "https://host/jre-8u202/jrexpto.tar.gz" → "jrexpto.tar.gz"
+     */
+    private static String urlResourceName(String url) {
+        if (url == null || url.isEmpty()) return url;
+        String path = url;
+        // remove query string / fragment
+        int q = path.indexOf('?'); if (q >= 0) path = path.substring(0, q);
+        int f = path.indexOf('#'); if (f >= 0) path = path.substring(0, f);
+        // remove trailing slashes
+        while (path.endsWith("/") && path.length() > 1) path = path.substring(0, path.length() - 1);
+        int slash = path.lastIndexOf('/');
+        return slash >= 0 ? path.substring(slash + 1) : path;
+    }
+
 }
