@@ -32,7 +32,7 @@ extends JPanel {
     private final JCheckBox resolutionCustom = new JCheckBox("Resolução:");
     private final JTextField resolutionWidth  = new JTextField();
     private final JTextField resolutionHeight = new JTextField();
-    private final JTextField nicknameField    = new JTextField();
+
 
     public ProfileInfoPanel(ProfileEditorPopup editor) {
         this.editor = editor;
@@ -54,16 +54,6 @@ extends JPanel {
         constraints.fill = 2;
         constraints.weightx = 1.0;
         this.add((Component) this.profileName, constraints);
-        constraints.weightx = 0.0;
-        constraints.fill = 0;
-        ++constraints.gridy;
-
-        // Nickname (por modpack)
-        this.add((Component) new JLabel("Nickname (Minecraft):"), constraints);
-        constraints.fill = 2;
-        constraints.weightx = 1.0;
-        this.nicknameField.setToolTipText("Nick exibido no servidor para este modpack. Deixe vazio para usar o nick do login.");
-        this.add((Component) this.nicknameField, constraints);
         constraints.weightx = 0.0;
         constraints.fill = 0;
         ++constraints.gridy;
@@ -96,8 +86,6 @@ extends JPanel {
 
     protected void fillDefaultValues() {
         this.profileName.setText(this.editor.getProfile().getName());
-        String nick = this.editor.getProfile().getNickname();
-        this.nicknameField.setText(nick != null ? nick : "");
         File gameDir = this.editor.getProfile().getGameDir();
         if (gameDir != null) {
             this.gameDirCustom.setSelected(true);
@@ -124,11 +112,6 @@ extends JPanel {
             @Override public void changedUpdate(DocumentEvent e) { updateProfileName(); }
         });
 
-        this.nicknameField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override public void insertUpdate(DocumentEvent e)  { updateNickname(); }
-            @Override public void removeUpdate(DocumentEvent e)  { updateNickname(); }
-            @Override public void changedUpdate(DocumentEvent e) { updateNickname(); }
-        });
 
         this.gameDirCustom.addItemListener(e -> updateGameDirState());
 
@@ -154,10 +137,6 @@ extends JPanel {
             this.editor.getProfile().setName(this.profileName.getText());
     }
 
-    private void updateNickname() {
-        String nick = this.nicknameField.getText().trim();
-        this.editor.getProfile().setNickname(nick.isEmpty() ? null : nick);
-    }
 
     private void updateGameDirState() {
         if (this.gameDirCustom.isSelected()) {
