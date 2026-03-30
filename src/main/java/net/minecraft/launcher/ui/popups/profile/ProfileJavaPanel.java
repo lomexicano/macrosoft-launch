@@ -4,33 +4,40 @@ import com.mojang.launcher.OperatingSystem;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.LayoutManager;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
+import javax.swing.ButtonModel;
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.border.Border;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.Document;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 import net.minecraft.launcher.profile.Profile;
 import net.minecraft.launcher.ui.popups.profile.ProfileEditorPopup;
-
-import javax.swing.JButton; // Adicionar esta importação
-import java.util.List;    // Adicionar esta importação
-import javax.swing.JList;   // Adicionar esta importação
-import javax.swing.JScrollPane; // Adicionar esta importação
-import javax.swing.JOptionPane; // Adicionar esta importação
-// Supondo que você criará JavaLocator em um pacote utils
 import net.minecraft.launcher.utils.JavaLocator;
 
 public class ProfileJavaPanel
@@ -47,10 +54,17 @@ extends JPanel {
         this.setLayout(new GridBagLayout());
         this.setBorder(BorderFactory.createTitledBorder("Configurações Java (Avançado)"));
 
-     // Tenta deixar a fonte em negrito para mais destaque
-        Font buttonFont = detectJavaButton.getFont();
-        detectJavaButton.setFont(buttonFont.deriveFont(Font.BOLD));
-        
+        // Estilo success cross-platform — bypassa o L&F nativo via BasicButtonUI
+        detectJavaButton.setForeground(Color.WHITE);
+        detectJavaButton.setFont(detectJavaButton.getFont().deriveFont(Font.BOLD, 12f));
+        detectJavaButton.setFocusPainted(false);
+        detectJavaButton.setOpaque(true);
+        detectJavaButton.setContentAreaFilled(false);
+        detectJavaButton.setBorderPainted(false);
+        detectJavaButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        detectJavaButton.setUI(new SolidButtonUI(new Color(0, 130, 80)));
+        detectJavaButton.setBorder(BorderFactory.createEmptyBorder(5, 12, 5, 12));
+
         this.createInterface();
         this.fillDefaultValues();
         this.addEventHandlers();
@@ -206,7 +220,7 @@ extends JPanel {
                 "Por favor, defina o caminho manualmente ou instale o Java 8.",
                 "Detecção de Java", JOptionPane.INFORMATION_MESSAGE);
         } else if (javaPaths.size() == 1) {
-            String foundPath = javaPaths.get(0);
+            String foundPath = shortenJavaPath(javaPaths.get(0));
             this.javaPathField.setText(foundPath);
             this.javaPathCustom.setSelected(true);
             updateJavaPathState();
@@ -214,7 +228,9 @@ extends JPanel {
                 "Java 8 encontrado e configurado:\n" + foundPath,
                 "Detecção de Java", JOptionPane.INFORMATION_MESSAGE);
         } else {
-            JList<String> list = new JList<>(javaPaths.toArray(new String[0]));
+            List<String> shortened = new java.util.ArrayList<>();
+            for (String p : javaPaths) shortened.add(shortenJavaPath(p));
+            JList<String> list = new JList<>(shortened.toArray(new String[0]));
             JScrollPane scrollPane = new JScrollPane(list);
             scrollPane.setPreferredSize(new Dimension(450, 150));
             int option = JOptionPane.showOptionDialog(
@@ -234,6 +250,25 @@ extends JPanel {
                 }
             }
         }
+    }
+
+    /**
+     * Se o caminho absoluto estiver dentro de &lt;user.dir&gt;/.macrosoft/.java,
+     * retorna o caminho relativo começando com ".macrosoft/.java/...".
+     * Caso contrário, retorna o caminho original.
+     */
+    private static String shortenJavaPath(String absolutePath) {
+        if (absolutePath == null) return null;
+        try {
+            Path base   = Paths.get(System.getProperty("user.dir", ".")).toAbsolutePath().normalize();
+            Path target = Paths.get(absolutePath).toAbsolutePath().normalize();
+            Path macrosoftJava = base.resolve(".macrosoft").resolve(".java").normalize();
+            if (target.startsWith(macrosoftJava)) {
+                // Retorna caminho relativo ao user.dir — começa com .macrosoft/.java/...
+                return base.relativize(target).toString();
+            }
+        } catch (Exception ignored) {}
+        return absolutePath;
     }
 
 
@@ -299,5 +334,50 @@ extends JPanel {
         }
     }
 
-}
+    /**
+     * UI de botão sólido com cor customizada — bypassa o L&F nativo,
+     * garantindo aparência consistente em Windows, Linux e macOS.
+     */
+    private static class SolidButtonUI extends javax.swing.plaf.basic.BasicButtonUI {
+        private final Color baseColor;
 
+        SolidButtonUI(Color baseColor) { this.baseColor = baseColor; }
+
+        @Override
+        public void installUI(JComponent c) {
+            super.installUI(c);
+            c.setOpaque(false);
+        }
+
+        @Override
+        public void paint(Graphics g, JComponent c) {
+            AbstractButton b   = (AbstractButton) c;
+            ButtonModel    model = b.getModel();
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            Color fill = !b.isEnabled()    ? baseColor.darker().darker()
+                       : model.isPressed() ? baseColor.darker()
+                       : model.isRollover() ? brighten(baseColor, 20)
+                       : baseColor;
+
+            int arc = 8;
+            g2.setColor(fill);
+            g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(), arc, arc);
+            g2.setColor(baseColor.darker());
+            g2.drawRoundRect(0, 0, c.getWidth() - 1, c.getHeight() - 1, arc, arc);
+            g2.dispose();
+            super.paint(g, c);
+        }
+
+        @Override
+        protected void paintButtonPressed(Graphics g, AbstractButton b) { /* evita repintura do L&F */ }
+
+        private static Color brighten(Color c, int amt) {
+            return new Color(Math.min(255, c.getRed()   + amt),
+                             Math.min(255, c.getGreen() + amt),
+                             Math.min(255, c.getBlue()  + amt));
+        }
+    }
+
+}
