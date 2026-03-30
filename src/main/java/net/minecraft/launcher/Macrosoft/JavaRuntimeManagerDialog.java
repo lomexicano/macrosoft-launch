@@ -160,10 +160,25 @@ public class JavaRuntimeManagerDialog extends JDialog {
             return;
         }
 
+        // Sugestão estética: na janela da lista de javas, deixar a coluna de nomes dos javas com tamanho adaptável (pra não ficar com muitos espaços à direita);
+        // 1: Descobrir qual é o maior tamanho de 'id' na lista de nomes dos javas
+        int maxIdLength = 0;
+        for (JavaRuntimeManager.JavaRuntimeOption option : platformOptions) {
+            if (option.id != null && option.id.length() > maxIdLength) {
+                maxIdLength = option.id.length();
+            }
+        }
+
+        // 2: Adicionar um espaço entre a coluna de nomes e a de URLs, para não ficar colado. Sugerido: 4 espaços;
+        int columnWidth = maxIdLength + 4;
+
+        // 3: Montar a string de formatação dinamicamente com os tamanhos calculados.
+        String dynamicFormat = "%s  %-" + columnWidth + "s  %s";
+
         for (JavaRuntimeManager.JavaRuntimeOption option : platformOptions) {
             JavaRuntimeManager.InstalledRuntime installed = installedById.get(option.id);
             String status   = (installed == null) ? "[ ]" : "[✔]";
-            String line     = String.format("%s  %-28s  %s", status, option.id, urlResourceName(option.url));
+            String line     = String.format(dynamicFormat, status, option.id, urlResourceName(option.url));
             listModel.addElement(line);
             rows.add(new Row(option, installed));
         }
