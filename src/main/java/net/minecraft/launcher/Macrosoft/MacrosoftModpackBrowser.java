@@ -379,6 +379,20 @@ public class MacrosoftModpackBrowser extends JPanel {
         }
         cardsPanel.revalidate();
         cardsPanel.repaint();
+
+        // Recalcular tamanho para remover espaços ociosos
+        if (parentFrame != null) {
+            // Remove qualquer tamanho forçado para deixar o Swing calcular livremente
+            parentFrame.setPreferredSize(null);
+            parentFrame.setMinimumSize(null);
+            this.setPreferredSize(null);
+
+            // Remove espaços ociosos, agora que não há mais tamanhos forçados na janela
+            parentFrame.pack();
+
+            // Opcional: Centraliza a janela novamente na tela do usuário após mudar o tamanho
+            parentFrame.setLocationRelativeTo(null);
+        }
     }
 
     /** Banner discreto exibido no topo da lista quando a API não responde. */
