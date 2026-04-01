@@ -37,7 +37,6 @@ public class Main {
             // ── Criar frame principal ──────────────────────────────────────
             JFrame frame = new JFrame("Macrosoft Launcher");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setPreferredSize(new Dimension(640, 520));
             frame.setMinimumSize(new Dimension(500, 400));
             try {
                 BufferedImage icon = ImageIO.read(Main.class.getResource("/favicon.png"));
@@ -50,7 +49,7 @@ public class Main {
             // ── Painel de seleção de modpacks (carrega dados async) ────────
             MacrosoftModpackBrowser browser = new MacrosoftModpackBrowser(macrosoftDir, frame, args);
             frame.setContentPane(browser);
-            frame.pack();
+            frame.setSize(640, 460);
             frame.setLocationRelativeTo(null);
 
             // Fechar splash e exibir o browser após breve momento

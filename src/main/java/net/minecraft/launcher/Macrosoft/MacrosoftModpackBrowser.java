@@ -14,6 +14,7 @@ import org.json.JSONObject;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
+import java.awt.datatransfer.StringSelection;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
@@ -51,6 +52,7 @@ public class MacrosoftModpackBrowser extends JPanel {
     private static final Color BTN_DISABLED = new Color(55, 50, 65);    // cinza: estados de espera
     private static final Color BTN_JAVA     = new Color(180, 110, 0);   // âmbar: botão Java
     private static final Color LINK_COLOR   = new Color(135, 206, 250);
+
 
     // ── API ────────────────────────────────────────────────────────────────
     private static final String[] API_URLS = {
@@ -379,20 +381,6 @@ public class MacrosoftModpackBrowser extends JPanel {
         }
         cardsPanel.revalidate();
         cardsPanel.repaint();
-
-        // Recalcular tamanho para remover espaços ociosos
-        if (parentFrame != null) {
-            // Remove qualquer tamanho forçado para deixar o Swing calcular livremente
-            parentFrame.setPreferredSize(null);
-            parentFrame.setMinimumSize(null);
-            this.setPreferredSize(null);
-
-            // Remove espaços ociosos, agora que não há mais tamanhos forçados na janela
-            parentFrame.pack();
-
-            // Opcional: Centraliza a janela novamente na tela do usuário após mudar o tamanho
-            parentFrame.setLocationRelativeTo(null);
-        }
     }
 
     /** Banner discreto exibido no topo da lista quando a API não responde. */
@@ -892,43 +880,235 @@ public class MacrosoftModpackBrowser extends JPanel {
      * Permite apontar para um servidor inexistente para testar comportamento offline.
      */
     private void showServerSettings() {
-        JPanel panel = new JPanel(new BorderLayout(0, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0));
+        // ── Conteúdo principal ────────────────────────────────────────────
+        JPanel content = new JPanel(new BorderLayout(0, 8));
+        content.setBorder(BorderFactory.createEmptyBorder(8, 10, 4, 10));
 
         JLabel desc = new JLabel("<html><b>URL da API do servidor de modpacks</b><br>"
-            + "<font color='gray'>Mantenha a URL padrão para usar o servidor oficial da Macrosoft<br>"
-            + "</font></html>");
-        panel.add(desc, BorderLayout.NORTH);
+            + "<font color='gray'>Mantenha a URL padrão para usar o servidor oficial da Macrosoft</font></html>");
+        content.add(desc, BorderLayout.NORTH);
 
-        // Mostra URL personalizada ou a URL padrão, para o usuário saber qual é
         String current = (customApiUrl != null) ? customApiUrl : API_URLS[0];
-        JTextField urlField = new JTextField(current, 38);
+        JTextField urlField = new JTextField(current, 40);
         urlField.setFont(new Font("Monospaced", Font.PLAIN, 12));
 
         JPanel fieldRow = new JPanel(new BorderLayout(4, 0));
+        fieldRow.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
         fieldRow.add(new JLabel("URL: "), BorderLayout.WEST);
         fieldRow.add(urlField, BorderLayout.CENTER);
-        panel.add(fieldRow, BorderLayout.CENTER);
+        content.add(fieldRow, BorderLayout.CENTER);
 
-        String[] options = {"Salvar e recarregar", "Cancelar", "Restaurar padrão"};
-        int choice = JOptionPane.showOptionDialog(parentFrame, panel,
-            "⚙ Configuração do Servidor",
-            JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
-            null, options, options[0]);
+        // ── Botões principais ─────────────────────────────────────────────
+        int[] choice = {1}; // 0=salvar, 1=cancelar, 2=restaurar
 
-        if (choice == 0) {          // Salvar e recarregar
+        JButton saveBtn    = new JButton("Salvar e recarregar");
+        JButton cancelBtn  = new JButton("Cancelar");
+        JButton restoreBtn = new JButton("Restaurar padrão");
+
+        JPanel mainBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        mainBtns.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+        mainBtns.add(saveBtn);
+        mainBtns.add(cancelBtn);
+        mainBtns.add(restoreBtn);
+
+        // ── Seção "para desenvolvedores" — discreta ───────────────────────
+        Color devGray = new Color(140, 140, 140);
+        Font  devFont = new Font(Font.SANS_SERIF, Font.PLAIN, 10);
+
+        JLabel devLabel = new JLabel("— para desenvolvedores —");
+        devLabel.setFont(devFont.deriveFont(Font.ITALIC));
+        devLabel.setForeground(devGray);
+
+        JButton copySchemaBtn = flatDevButton("📋 Copiar JSON Schema", devFont, devGray);
+        copySchemaBtn.setToolTipText("Copia o schema de exemplo para quem quiser hospedar o próprio servidor de modpacks");
+
+        JButton testSchemaBtn = flatDevButton("🔍 Testar URL", devFont, devGray);
+        testSchemaBtn.setToolTipText("Faz uma requisição GET à URL e valida se o retorno segue o schema esperado");
+
+        JPanel devRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 2));
+        devRow.add(devLabel);
+        devRow.add(copySchemaBtn);
+        devRow.add(testSchemaBtn);
+
+        JPanel devSection = new JPanel(new BorderLayout());
+        devSection.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(200, 200, 200)),
+            BorderFactory.createEmptyBorder(2, 0, 4, 0)
+        ));
+        devSection.add(devRow, BorderLayout.CENTER);
+
+        // ── Montagem do diálogo ───────────────────────────────────────────
+        JPanel root = new JPanel(new BorderLayout(0, 0));
+        root.add(content,    BorderLayout.NORTH);
+        root.add(mainBtns,   BorderLayout.CENTER);
+        root.add(devSection, BorderLayout.SOUTH);
+
+        JDialog dialog = new JDialog(parentFrame, "⚙ Configuração do Servidor", true);
+        dialog.setContentPane(root);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+        // Listeners dos botões principais
+        saveBtn.addActionListener(ev    -> { choice[0] = 0; dialog.dispose(); });
+        cancelBtn.addActionListener(ev  -> { choice[0] = 1; dialog.dispose(); });
+        restoreBtn.addActionListener(ev -> { choice[0] = 2; dialog.dispose(); });
+
+        // ── Ação: Copiar JSON Schema ──────────────────────────────────────
+        copySchemaBtn.addActionListener(ev -> {
+            String schema = loadSchemaResource();
+            if (schema == null) {
+                JOptionPane.showMessageDialog(dialog,
+                    "Não foi possível carregar o arquivo de schema.",
+                    "Erro", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            StringSelection sel = new StringSelection(schema);
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, sel);
+            JOptionPane.showMessageDialog(dialog,
+                "JSON Schema copiado para a área de transferência.",
+                "Copiado", JOptionPane.PLAIN_MESSAGE);
+        });
+
+        // ── Ação: Testar URL ──────────────────────────────────────────────
+        testSchemaBtn.addActionListener(ev -> {
+            String testUrl = urlField.getText().trim();
+            if (testUrl.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog,
+                    "Informe uma URL no campo acima antes de testar.",
+                    "URL vazia", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            testSchemaBtn.setEnabled(false);
+            testSchemaBtn.setText("⏳ testando…");
+
+            new SwingWorker<String, Void>() {
+                @Override
+                protected String doInBackground() {
+                    try {
+                        org.json.JSONObject json = Connector.get(testUrl);
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("<html><body style='width:460px'>");
+
+                        String[] required = {"version", "menuHeight", "site", "discord", "download", "servers"};
+                        boolean allOk = true;
+                        sb.append("<b>Validação dos campos obrigatórios:</b><br><table cellpadding='3'>");
+                        for (String key : required) {
+                            boolean has = json.has(key);
+                            if (!has) allOk = false;
+                            sb.append("<tr><td>").append(has ? "✅" : "❌").append("</td>")
+                              .append("<td><b>").append(key).append("</b></td>")
+                              .append("<td>").append(has ? formatSchemaValue(json, key) : "<font color='red'>ausente</font>")
+                              .append("</td></tr>");
+                        }
+                        sb.append("</table><br>");
+
+                        if (json.has("servers")) {
+                            try {
+                                org.json.JSONArray servers = json.getJSONArray("servers");
+                                sb.append("<b>Modpacks encontrados: ").append(servers.length()).append("</b><br>");
+                                sb.append("<table cellpadding='3'><tr><th>#</th><th>name</th><th>icon</th><th>modpack_zip</th><th>modpack_author</th></tr>");
+                                for (int i = 0; i < servers.length(); i++) {
+                                    org.json.JSONObject s = servers.getJSONObject(i);
+                                    sb.append("<tr>")
+                                      .append("<td>").append(i + 1).append("</td>")
+                                      .append("<td>").append(s.optString("name", "<font color='red'>❌</font>")).append("</td>")
+                                      .append("<td>").append(s.has("icon") ? "✅" : "❌").append("</td>")
+                                      .append("<td>").append(s.has("modpack_zip") ? "✅" : "❌").append("</td>")
+                                      .append("<td>").append(s.optString("modpack_author", "—")).append("</td>")
+                                      .append("</tr>");
+                                }
+                                sb.append("</table><br>");
+                            } catch (Exception ex) {
+                                allOk = false;
+                                sb.append("<font color='red'>⚠ Campo <b>servers</b> não é um array válido.</font><br><br>");
+                            }
+                        }
+
+                        sb.append(allOk
+                            ? "<b><font color='green'>✅ Endpoint em conformidade com o schema!</font></b>"
+                            : "<b><font color='red'>❌ Campos obrigatórios ausentes no endpoint.</font></b>");
+                        sb.append("</body></html>");
+                        return sb.toString();
+
+                    } catch (org.json.JSONException ex) {
+                        return "<html><body style='width:380px'><b><font color='red'>❌ Resposta não é JSON válido.</font></b><br><br>"
+                            + "Erro: " + ex.getMessage() + "<br><br>"
+                            + "Certifique-se de que o endpoint retorna JSON puro via GET,<br>"
+                            + "sem wrapper HTML e com <tt>Content-Type: application/json</tt>."
+                            + "</body></html>";
+                    } catch (Exception ex) {
+                        return "<html><body style='width:380px'><b><font color='red'>❌ Falha ao conectar.</font></b><br><br>"
+                            + "Erro: " + ex.getMessage() + "</body></html>";
+                    }
+                }
+
+                @Override
+                protected void done() {
+                    testSchemaBtn.setEnabled(true);
+                    testSchemaBtn.setText("🔍 Testar URL");
+                    try {
+                        JOptionPane.showMessageDialog(dialog, get(),
+                            "🔍 Resultado — " + testUrl, JOptionPane.INFORMATION_MESSAGE);
+                    } catch (Exception ignored) {}
+                }
+            }.execute();
+        });
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setResizable(false);
+        dialog.setVisible(true); // bloqueia até dispose()
+
+        // ── Processar escolha ─────────────────────────────────────────────
+        if (choice[0] == 0) {        // Salvar e recarregar
             String val = urlField.getText().trim();
-            // Campo vazio ou igual à URL padrão → volta ao modo padrão (com fallback)
             boolean isDefault = val.isEmpty() || val.equals(API_URLS[0]);
             customApiUrl = isDefault ? null : val;
             saveCustomApiUrl(customApiUrl != null ? customApiUrl : "");
             showLoadingState();
             loadEntriesAsync();
-        } else if (choice == 2) {   // Restaurar padrão
+        } else if (choice[0] == 2) { // Restaurar padrão
             customApiUrl = null;
             saveCustomApiUrl("");
             showLoadingState();
             loadEntriesAsync();
         }
+    }
+
+    /** Cria um botão flat e discreto para a seção de desenvolvedores. */
+    private static JButton flatDevButton(String text, Font font, Color fg) {
+        JButton btn = new JButton(text);
+        btn.setFont(font);
+        btn.setForeground(fg);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(true);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(190, 190, 190), 1, true),
+            BorderFactory.createEmptyBorder(2, 6, 2, 6)
+        ));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setFocusPainted(false);
+        return btn;
+    }
+
+    /** Carrega o conteúdo de modpack_server_schema.json do classpath. */
+    private String loadSchemaResource() {
+        try (InputStream is = getClass().getResourceAsStream("/modpack_server_schema.json")) {
+            if (is == null) return null;
+            byte[] bytes = new byte[is.available()];
+            //noinspection ResultOfMethodCallIgnored
+            is.read(bytes);
+            return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IOException ignored) {
+            return null;
+        }
+    }
+
+    private static String formatSchemaValue(org.json.JSONObject json, String key) {
+        Object v = json.opt(key);
+        if (v == null) return "—";
+        if (v instanceof org.json.JSONArray) return "[array, " + ((org.json.JSONArray) v).length() + " itens]";
+        if (v instanceof org.json.JSONObject) return "{objeto}";
+        String s = v.toString();
+        return s.length() > 60 ? s.substring(0, 57) + "…" : s;
     }
 }

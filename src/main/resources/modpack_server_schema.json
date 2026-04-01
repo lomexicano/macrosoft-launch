@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Macrosoft Launcher — Modpack Server API",
+  "description": "Schema do endpoint GET que fornece modpacks ao Macrosoft Launcher.",
+  "type": "object",
+  "required": ["version", "menuHeight", "site", "discord", "download", "servers"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "description": "Versão do launcher. Sempre que a versão obtida for maior que a versão atual do launcher, o launcher avisa o usuário indicando o link para download da nova versão."
+    },
+    "menuHeight": {
+      "type": "integer",
+      "description": "Altura em pixels da área de modpacks no launcher."
+    },
+    "site": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL do site do servidor (exibida no rodapé do launcher)."
+    },
+    "discord": {
+      "type": "string",
+      "format": "uri",
+      "description": "Link de convite do Discord do servidor."
+    },
+    "download": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL do .jar do launcher utilizada para auto-update."
+    },
+    "java": {
+      "type": "object",
+      "description": "URLs de download do JRE por versão, sistema operacional e arquitetura.",
+      "properties": {
+        "jre-8": {
+          "type": "object",
+          "properties": {
+            "linux": {
+              "type": "object",
+              "properties": {
+                "x64": { "type": "string", "format": "uri" },
+                "x86": { "type": "string", "format": "uri" }
+              }
+            },
+            "windows": {
+              "type": "object",
+              "properties": {
+                "x64": { "type": "string", "format": "uri" },
+                "x86": { "type": "string", "format": "uri" }
+              }
+            },
+            "macos": {
+              "type": "object",
+              "properties": {
+                "x64": { "type": "string", "format": "uri" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "servers": {
+      "type": "array",
+      "description": "Lista de modpacks disponíveis.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome do modpack."
+          },
+          "icon": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL da imagem do ícone (PNG/JPG)."
+          },
+          "modpack_zip": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL do arquivo .zip do modpack."
+          },
+          "modpack_author": {
+            "type": "string",
+            "description": "Nome(s) do(s) autor(es) do modpack."
+          }
+        }
+      }
+    }
+  }
+}
+
