@@ -12,10 +12,8 @@
   - [Criptografia de credenciais](#1-criptografia-de-credenciais--aes-256-gcm)
   - [Autenticação Yggdrasil](#2-autenticação-yggdrasil--tokens-sem-senha-em-disco)
   - [Integridade dos arquivos](#3-integridade-dos-arquivos--sha-1)
-  - [Proxy SOCKS5](#4-proxy-socks5-autenticado--por-perfil)
-  - [Permissões de arquivo](#5-permissões-de-arquivo--posix)
-  - [HTTPS obrigatório](#6-https-obrigatório-em-todas-as-conexões)
-- [Proxy SOCKS5 — Guia de Uso](#proxy-socks5--guia-de-uso)
+  - [Permissões de arquivo](#4-permissões-de-arquivo--posix)
+  - [HTTPS obrigatório](#5-https-obrigatório-em-todas-as-conexões)
 - [Modpacks](#modpacks)
 - [Build](#build)
 - [Requisitos](#requisitos)
@@ -31,7 +29,6 @@ O **Macrosoft Launcher** é um launcher de Minecraft construído sobre a base of
 
 - Interface gráfica em Swing com tema escuro personalizado
 - Suporte a múltiplos **modpacks gerenciados** via API
-- Proxy **SOCKS5 autenticado** configurável por perfil
 - Criptografia robusta de credenciais sensíveis armazenadas em disco
 
 ---
@@ -41,8 +38,7 @@ O **Macrosoft Launcher** é um launcher de Minecraft construído sobre a base of
 | Recurso | Descrição |
 |---|---|
 | 🎮 **Multi-modpack** | Navega, baixa e lança diferentes modpacks a partir de uma API centralizada |
-| 👤 **Múltiplos perfis** | Cada perfil tem versão, diretório, JVM, resolução e proxy independentes |
-| 🔌 **Proxy SOCKS5** | Configuração por perfil com credenciais e botão de teste integrado |
+| 👤 **Múltiplos perfis** | Cada perfil tem versão, diretório, JVM e resolução independentes |
 | 🔐 **Credenciais criptografadas** | Senhas e tokens protegidos com AES-256-GCM vinculado à máquina |
 | 📋 **Console de logs** | Saída do jogo em tempo real por aba, com histórico |
 | ⬇️ **Downloader com progresso** | Download de modpacks com barra de progresso e cancelamento |
@@ -54,8 +50,7 @@ O **Macrosoft Launcher** é um launcher de Minecraft construído sobre a base of
 ## Segurança
 
 Esta seção descreve as camadas de segurança implementadas. O objetivo é garantir que
-**credenciais nunca fiquem expostas em texto plano** e que o jogador possa operar com
-**privacidade de rede** quando necessário.
+**credenciais nunca fiquem expostas em texto plano** durante o uso do launcher.
 
 ---
 
@@ -63,7 +58,7 @@ Esta seção descreve as camadas de segurança implementadas. O objetivo é gara
 
 **Arquivo:** `src/.../utils/CryptoUtils.java`
 
-Toda credencial sensível armazenada em disco (senha do proxy, tokens de sessão) é
+Toda credencial sensível armazenada em disco (tokens de sessão) é
 protegida com a stack criptográfica mais robusta disponível na JVM padrão:
 
 | Parâmetro | Valor |
@@ -142,72 +137,7 @@ Isso protege contra:
 
 ---
 
-### 4. Proxy SOCKS5 Autenticado — por Perfil
-
-**Arquivos:** `ProfileProxyPanel.java`, `MinecraftGameRunner.java`
-
-O suporte a proxy cobre **todo o tráfego de rede do jogo** através de duas fases:
-
-#### Fase 1 — Propriedades JVM (antes do `main` class)
-
-Argumentos injetados no processo filho **antes** do nome da classe principal, garantindo
-que sejam interpretados pela JVM como propriedades do sistema:
-
-```
-java  [...]
-      -DsocksProxyHost=<host>          ← lido por java.net.Socket
-      -DsocksProxyPort=<porta>
-      -Djava.net.socks.username=<user>
-      -Djava.net.socks.password=<pass>
-      net.minecraft.client.main.Main   ← main class
-      [game args...]
-```
-
-Cobrem: autenticação com a Mojang, downloads do launcher, sockets Java nativos.
-
-#### Fase 2 — Argumentos do jogo (após `main` class)
-
-```
---proxyHost <host>    ← Minecraft cria Proxy.Type.SOCKS internamente
---proxyPort <porta>
---proxyUser <usuário>
---proxyPass <senha>
-```
-
-O Minecraft (1.6.4+) lê esses argumentos e cria um `Proxy.Type.SOCKS` que é passado ao
-`NetworkManager` / **Netty**. Isso cobre as conexões TCP a servidores de Minecraft —
-que usam NIO e **não** herdam as propriedades do sistema da Fase 1.
-
-#### Authenticator global
-
-O `java.net.Authenticator` é registrado no processo do launcher para que todas as
-requisições `HttpURLConnection` também possam se autenticar com o proxy SOCKS5.
-
-#### Senha do proxy — nunca em texto plano no disco
-
-```
-Profile.getProxyPassword()               ← ciphertext AES-256-GCM em disco
-        │
-        ▼  CryptoUtils.decrypt()
-        │
-        ▼  plaintext em memória (temporário)
-        │
-        ▼
--Djava.net.socks.password=<plain>        ← passado ao processo filho
---proxyPass <plain>                      ← passado ao processo filho
-```
-
-A versão encriptada **nunca** é repassada ao processo filho.
-
-#### Sem fallback para conexão direta
-
-Quando o proxy está configurado e indisponível, as tentativas de conexão **falham com
-exceção** — não existe código de fallback para conexão direta. O tráfego não vaza
-acidentalmente pela interface de rede real.
-
----
-
-### 5. Permissões de Arquivo — POSIX
+### 4. Permissões de Arquivo — POSIX
 
 Em Linux e macOS, o segredo criptográfico é protegido por permissões de sistema:
 
@@ -225,7 +155,7 @@ impedindo que um processo ou usuário não-privilegiado derive a chave AES.
 
 ---
 
-### 6. HTTPS Obrigatório em Todas as Conexões
+### 5. HTTPS Obrigatório em Todas as Conexões
 
 Todas as URLs hardcoded no launcher usam HTTPS:
 
@@ -237,35 +167,6 @@ Todas as URLs hardcoded no launcher usam HTTPS:
 | Download de bibliotecas | `https://libraries.minecraft.net/` |
 | Download de assets | `https://resources.download.minecraft.net/` |
 | API de modpacks Macrosoft | `https://www.macrosoft.website/launcher/info` |
-
----
-
-## Proxy SOCKS5 — Guia de Uso
-
-1. Abra o **editor de perfil** (botão ⚙ ao lado do modpack)
-2. Vá à seção **Configurações de Proxy**
-3. Marque **"Habilitar Proxy para este Perfil"**
-4. Preencha os campos:
-
-```
-┌─ Configurações de Proxy ──────────────────────────────────────┐
-│ ☑ Habilitar Proxy para este Perfil                             │
-│ Tipo de Proxy:      SOCKS5                                     │
-│ Endereço (Host):    [ 147.93.x.x                           ]   │
-│ Porta:              [ 8888                                 ]   │
-│ Usuário (Opcional): [ meuusuario                           ]   │
-│ Senha (Opcional):   [ ••••••••••••                         ]   │
-│ [Testar Conexão]    ✔ Conectado! IP de saída: 147.93.x.x      │
-└────────────────────────────────────────────────────────────────┘
-```
-
-5. Clique em **"Testar Conexão"** — o launcher testa via `https://ifconfig.me` e exibe o
-   IP de saída do proxy
-6. Clique em **Salvar Perfil**
-
-> **Dica:** o botão de teste usa exatamente o mesmo mecanismo (`Proxy.Type.SOCKS` +
-> `Authenticator`) que será utilizado no lançamento do jogo. Se o teste passar, o jogo
-> também vai funcionar através do proxy.
 
 ---
 
@@ -307,21 +208,6 @@ O JAR executável (`mclaunch-all.jar`) será gerado em `build/libs/`.
 java -jar build/libs/mclaunch-all.jar
 ```
 
-### Executar com proxy global (via CLI)
-
-```bash
-java -jar build/libs/mclaunch-all.jar \
-  --proxyHost 127.0.0.1 \
-  --proxyPort 1080 \
-  --proxyUser usuario \
-  --proxyPass senha
-```
-
-> O proxy via CLI é global (afeta o launcher inteiro). Para isolamento por modpack,
-> use a configuração de proxy por perfil dentro do launcher.
-
----
-
 ## Requisitos
 
 | Componente | Versão mínima |
@@ -345,11 +231,8 @@ src/main/java/
     ├── launcher/
     │   ├── Macrosoft/     # Browser de modpacks, downloader, bootstrapper
     │   ├── game/
-    │   │   └── MinecraftGameRunner.java  # Orquestra o lançamento + proxy
+    │   │   └── MinecraftGameRunner.java  # Orquestra o lançamento do jogo
     │   ├── profile/       # Perfis e banco de autenticação
-    │   ├── ui/
-    │   │   └── popups/profile/
-    │   │       └── ProfileProxyPanel.java  # UI de configuração SOCKS5
     │   └── utils/
     │       └── CryptoUtils.java  # AES-256-GCM + PBKDF2WithHmacSHA256
     └── hopper/            # Relatório de crashes (Hopper Service)
