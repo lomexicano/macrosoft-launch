@@ -716,6 +716,7 @@ public class MacrosoftModpackBrowser extends JPanel {
 
     /** Carrega o nick salvo para esta modpack, ou null se não definido. */
     private String loadNickForEntry(ModpackEntry entry) {
+        // 1) Prioriza o nick persistido por modpack
         try {
             File f = nickFileForEntry(entry);
             if (f.exists()) {
@@ -723,6 +724,38 @@ public class MacrosoftModpackBrowser extends JPanel {
                 return v.isEmpty() ? null : v;
             }
         } catch (IOException ignored) {}
+
+        // 2) Fallback: extrai do launcher_profiles.json da própria modpack
+        try {
+            File profilesFile = new File(macrosoftBaseDir, entry.name + File.separator + "launcher_profiles.json");
+            if (!profilesFile.exists()) return null;
+
+            String jsonContent = new String(Files.readAllBytes(profilesFile.toPath()));
+            JSONObject json = new JSONObject(jsonContent);
+
+            String selectedUser = null;
+            Object selectedUserObj = json.opt("selectedUser");
+            if (selectedUserObj instanceof String) {
+                selectedUser = ((String) selectedUserObj).trim();
+            } else if (selectedUserObj instanceof JSONObject) {
+                JSONObject selectedUserJson = (JSONObject) selectedUserObj;
+                selectedUser = selectedUserJson.optString("account", "").trim();
+            }
+            if (selectedUser == null || selectedUser.isEmpty()) return null;
+
+            JSONObject authDb = json.optJSONObject("authenticationDatabase");
+            if (authDb == null) return null;
+
+            JSONObject userObj = authDb.optJSONObject(selectedUser);
+            if (userObj == null) return null;
+
+            String extractedNick = userObj.optString("username", userObj.optString("displayName", "")).trim();
+            if (extractedNick.isEmpty()) return null;
+
+            saveNickForEntry(entry, extractedNick);
+            return extractedNick;
+        } catch (Exception ignored) {}
+
         return null;
     }
 

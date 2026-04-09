@@ -1,6 +1,5 @@
 package net.minecraft.launcher;
 
-import com.mojang.launcher.OperatingSystem;
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -43,8 +42,8 @@ public class Main {
                 if (icon != null) frame.setIconImage(icon);
             } catch (IOException | NullPointerException ignored) {}
 
-            // ── Diretório base .macrosoft (junto do jar/cwd) ──────────────
-            File macrosoftDir = new File(System.getProperty("user.dir", "."), ".macrosoft");
+            // ── Diretório base .macrosoft (junto do jar executado) ───────
+            File macrosoftDir = new File(resolveLauncherBaseDirectory(), ".macrosoft");
 
             // ── Painel de seleção de modpacks (carrega dados async) ────────
             MacrosoftModpackBrowser browser = new MacrosoftModpackBrowser(macrosoftDir, frame, args);
@@ -201,15 +200,29 @@ public class Main {
     }
 
     public static File getWorkingDirectory() {
-        String userHome = System.getProperty("user.dir", ".");
-        switch (OperatingSystem.getCurrentPlatform()) {
-            case LINUX:
-            case WINDOWS:
-                return new File(userHome, ".macrosoft/" + macrosoftLauncherContext + "/");
-            case OSX:
-                return new File(userHome, "Library/Application Support/macrosoft/" + macrosoftLauncherContext);
-            default:
-                return new File(userHome, "macrosoft/.macrosoft/" + macrosoftLauncherContext + "/");
+        return new File(resolveLauncherBaseDirectory(), ".macrosoft" + File.separator + macrosoftLauncherContext);
+    }
+
+    /**
+     * Resolve a pasta base do launcher priorizando o diretório do JAR em execução.
+     * Em execução por classes (ex.: IDE), usa user.dir como fallback previsível.
+     */
+    private static File resolveLauncherBaseDirectory() {
+        try {
+            java.net.URL codeSourceUrl = Main.class.getProtectionDomain().getCodeSource().getLocation();
+            if (codeSourceUrl != null) {
+                File codeSource = new File(codeSourceUrl.toURI()).getAbsoluteFile();
+                if (codeSource.isFile()) {
+                    File parent = codeSource.getParentFile();
+                    if (parent != null) {
+                        return parent;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.debug("Could not resolve launcher base from code source, falling back to user.dir", e);
         }
+
+        return new File(System.getProperty("user.dir", ".")).getAbsoluteFile();
     }
 }
