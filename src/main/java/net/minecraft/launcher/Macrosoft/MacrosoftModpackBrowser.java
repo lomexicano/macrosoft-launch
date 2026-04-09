@@ -21,10 +21,13 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -447,6 +450,9 @@ public class MacrosoftModpackBrowser extends JPanel {
         info.add(authorLbl);
         card.add(info, BorderLayout.CENTER);
 
+        JButton menuBtn = createCardMenuButton();
+        menuBtn.addActionListener(e -> showCardMenu(entry, menuBtn));
+
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         btnPanel.setBackground(CARD_BG);
 
@@ -492,6 +498,8 @@ public class MacrosoftModpackBrowser extends JPanel {
             btnPanel.add(logsBtn);
             btnPanel.add(nickBtn);
             btnPanel.add(configBtn);
+            btnPanel.add(Box.createRigidArea(new Dimension(4, 0)));
+            btnPanel.add(menuBtn);
             btnPanel.add(actionBtn);
             cardUiList.add(new CardUi(entry, actionBtn, configBtn, logsBtn, nickBtn, nickLabel));
 
@@ -499,10 +507,71 @@ public class MacrosoftModpackBrowser extends JPanel {
             JButton dlBtn = styledButton("⬇  Baixar", BTN_DL);
             dlBtn.addActionListener(e -> downloadModpack(entry, dlBtn));
             btnPanel.add(dlBtn);
+            btnPanel.add(Box.createRigidArea(new Dimension(4, 0)));
+            btnPanel.add(menuBtn);
         }
 
-        card.add(btnPanel, BorderLayout.EAST);
+        JPanel rightCenterPanel = new JPanel(new GridBagLayout());
+        rightCenterPanel.setBackground(CARD_BG);
+        rightCenterPanel.add(btnPanel);
+
+        card.add(rightCenterPanel, BorderLayout.EAST);
         return card;
+    }
+
+    private JButton createCardMenuButton() {
+        JButton btn = new JButton();
+        btn.setIcon(createVerticalDotsIcon(8, 12, TEXT_GRAY));
+        btn.setBackground(CARD_BG);
+        btn.setFocusPainted(false);
+        btn.setOpaque(false);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
+        btn.setMargin(new Insets(0, 0, 0, 0));
+        btn.setPreferredSize(new Dimension(12, 14));
+        btn.setMinimumSize(new Dimension(12, 14));
+        btn.setMaximumSize(new Dimension(12, 14));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setToolTipText("Ações da modpack");
+        return btn;
+    }
+
+    private static Icon createVerticalDotsIcon(int width, int height, Color color) {
+        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(color);
+
+        int dotSize = Math.max(2, Math.min(width, height) / 4);
+        int x = (width - dotSize) / 2;
+        int gap = Math.max(1, (height - (dotSize * 3)) / 2);
+        int y = 0;
+
+        for (int i = 0; i < 3; i++) {
+            g.fillOval(x, y, dotSize, dotSize);
+            y += dotSize + gap;
+        }
+        g.dispose();
+        return new ImageIcon(img);
+    }
+
+    private void showCardMenu(ModpackEntry entry, JButton anchor) {
+        JPopupMenu menu = new JPopupMenu();
+        boolean hasDownloadUrl = entry.downloadUrl != null && !entry.downloadUrl.trim().isEmpty();
+        boolean hasLocalDir = new File(macrosoftBaseDir, entry.name).isDirectory();
+
+        JMenuItem reinstallItem = new JMenuItem("Reinstalar modpack");
+        reinstallItem.setEnabled(hasDownloadUrl);
+        reinstallItem.addActionListener(e -> reinstallModpack(entry));
+
+        JMenuItem deleteItem = new JMenuItem("Excluir modpack");
+        deleteItem.setEnabled(hasLocalDir || entry.isDownloaded);
+        deleteItem.addActionListener(e -> deleteModpack(entry));
+
+        menu.add(reinstallItem);
+        menu.add(deleteItem);
+        menu.show(anchor, 0, anchor.getHeight());
     }
 
     // ── Lógica do botão de ação ────────────────────────────────────────────
@@ -581,8 +650,10 @@ public class MacrosoftModpackBrowser extends JPanel {
     }
 
     private void downloadModpack(ModpackEntry entry, JButton triggerBtn) {
-        triggerBtn.setEnabled(false);
-        triggerBtn.setText("...");
+        if (triggerBtn != null) {
+            triggerBtn.setEnabled(false);
+            triggerBtn.setText("...");
+        }
         File targetDir = new File(macrosoftBaseDir, entry.name);
         if (!targetDir.exists()) targetDir.mkdirs();
         ActionEvent fakeEvent = new ActionEvent(new JButton(entry.name), ActionEvent.ACTION_PERFORMED, "");
@@ -590,6 +661,92 @@ public class MacrosoftModpackBrowser extends JPanel {
             "Baixando <b>" + entry.name + "</b> por <i>" + entry.author + "</i>...",
             ev -> { entry.isDownloaded = true; SwingUtilities.invokeLater(this::refreshCards); },
             fakeEvent);
+    }
+
+    private void reinstallModpack(ModpackEntry entry) {
+        if (entry.downloadUrl == null || entry.downloadUrl.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(parentFrame,
+                "Esta modpack não possui URL de download para reinstalação.",
+                "Reinstalação indisponível", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (!releaseLaunchersForDiskChange(entry, "reinstalar")) return;
+        // Reutiliza o mesmo fluxo de download/extracao: sobrescreve arquivos do ZIP sem limpar extras da pasta.
+        downloadModpack(entry, null);
+    }
+
+    private void deleteModpack(ModpackEntry entry) {
+        File targetDir = new File(macrosoftBaseDir, entry.name);
+        if (!targetDir.exists()) {
+            JOptionPane.showMessageDialog(parentFrame,
+                "A pasta da modpack não foi encontrada.",
+                "Nada para excluir", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        int opt = JOptionPane.showConfirmDialog(parentFrame,
+            "Excluir a modpack '" + entry.name + "' e apagar toda a pasta local?\n"
+                + targetDir.getAbsolutePath(),
+            "Confirmar exclusão", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (opt != JOptionPane.YES_OPTION) return;
+
+        if (!releaseLaunchersForDiskChange(entry, "excluir")) return;
+
+        try {
+            deleteDirectoryRecursively(targetDir.toPath());
+            entry.isDownloaded = false;
+            if (entry.downloadUrl == null) {
+                entries.remove(entry);
+            }
+            refreshCards();
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(parentFrame,
+                "Falha ao excluir modpack: " + ex.getMessage(),
+                "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private boolean releaseLaunchersForDiskChange(ModpackEntry entry, String actionLabel) {
+        ActionState state = getActionState(entry);
+
+        if (state == ActionState.PLAYING) {
+            int opt = JOptionPane.showConfirmDialog(parentFrame,
+                "O jogo está em execução.\nPara " + actionLabel + " a modpack, o processo será encerrado. Deseja continuar?",
+                "Jogo em execução", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (opt != JOptionPane.YES_OPTION) return false;
+            entry.playLauncher.getLaunchDispatcher().stopAll();
+        } else if (state == ActionState.DOWNLOADING) {
+            int opt = JOptionPane.showConfirmDialog(parentFrame,
+                "Uma instalação está em andamento.\nPara " + actionLabel + " a modpack, essa operação será interrompida. Deseja continuar?",
+                "Instalação em andamento", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (opt != JOptionPane.YES_OPTION) return false;
+        }
+
+        entry.playLauncher = null;
+        entry.configureLauncher = null;
+        if (entry.logDialog != null) {
+            entry.logDialog.dispose();
+            entry.logDialog = null;
+        }
+        return true;
+    }
+
+    private void deleteDirectoryRecursively(Path path) throws IOException {
+        if (!Files.exists(path)) return;
+        try (java.util.stream.Stream<Path> walk = Files.walk(path)) {
+            try {
+                walk.sorted(Comparator.reverseOrder())
+                    .forEach(p -> {
+                        try {
+                            Files.delete(p);
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+            } catch (UncheckedIOException e) {
+                throw e.getCause();
+            }
+        }
     }
 
     // ── Polling de estado ──────────────────────────────────────────────────
