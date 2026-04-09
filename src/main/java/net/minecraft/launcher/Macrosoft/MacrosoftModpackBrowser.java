@@ -498,9 +498,9 @@ public class MacrosoftModpackBrowser extends JPanel {
             btnPanel.add(logsBtn);
             btnPanel.add(nickBtn);
             btnPanel.add(configBtn);
+            btnPanel.add(actionBtn);
             btnPanel.add(Box.createRigidArea(new Dimension(4, 0)));
             btnPanel.add(menuBtn);
-            btnPanel.add(actionBtn);
             cardUiList.add(new CardUi(entry, actionBtn, configBtn, logsBtn, nickBtn, nickLabel));
 
         } else if (entry.downloadUrl != null) {
