@@ -178,8 +178,9 @@ implements GameProcessRunnable {
                 this.selectedProfile.getJavaPath(),
                 OperatingSystem.getCurrentPlatform().getJavaDir());
         // Resolver caminhos relativos ao launcher (ex: .macrosoft/.java/...)
+        // workingDirectory = .macrosoft/<context>  →  parent = .macrosoft  →  parent.parent = diretório que *contém* .macrosoft
         if (rawJavaPath.startsWith(".macrosoft") || rawJavaPath.startsWith(".macrosoft/") || rawJavaPath.startsWith(".macrosoft\\")) {
-            java.nio.file.Path base = java.nio.file.Paths.get(System.getProperty("user.dir", ".")).toAbsolutePath().normalize();
+            java.nio.file.Path base = this.getLauncher().getWorkingDirectory().toPath().getParent().getParent().toAbsolutePath().normalize();
             rawJavaPath = base.resolve(rawJavaPath).normalize().toString();
         }
         String javaExecutable = rawJavaPath.replace('\\', File.separatorChar);

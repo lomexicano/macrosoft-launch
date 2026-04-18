@@ -268,19 +268,20 @@ extends JPanel {
     }
 
     /**
-     * Se o caminho absoluto estiver dentro de &lt;user.dir&gt;/.macrosoft/.java,
-     * retorna o caminho relativo começando com ".macrosoft/.java/...".
+     * Se o caminho absoluto contiver o segmento ".macrosoft" (seguido de ".java"),
+     * retorna o caminho a partir de ".macrosoft" (inclusive).
      * Caso contrário, retorna o caminho original.
      */
     private static String shortenJavaPath(String absolutePath) {
         if (absolutePath == null) return null;
         try {
-            Path base   = Paths.get(System.getProperty("user.dir", ".")).toAbsolutePath().normalize();
             Path target = Paths.get(absolutePath).toAbsolutePath().normalize();
-            Path macrosoftJava = base.resolve(".macrosoft").resolve(".java").normalize();
-            if (target.startsWith(macrosoftJava)) {
-                // Retorna caminho relativo ao user.dir — começa com .macrosoft/.java/...
-                return base.relativize(target).toString();
+            // Percorre os componentes do path procurando ".macrosoft"
+            for (int i = 0; i < target.getNameCount(); i++) {
+                if (".macrosoft".equals(target.getName(i).toString())) {
+                    // Retorna o sub-path a partir de ".macrosoft" inclusive
+                    return target.subpath(i, target.getNameCount()).toString();
+                }
             }
         } catch (Exception ignored) {}
         return absolutePath;
