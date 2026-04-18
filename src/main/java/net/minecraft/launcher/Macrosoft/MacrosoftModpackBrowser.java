@@ -122,6 +122,9 @@ public class MacrosoftModpackBrowser extends JPanel {
     private String  customApiUrl       = null;
     /** true quando a última tentativa de contatar a API falhou. */
     private boolean lastLoadHadApiError = false;
+    private boolean newVersionAvailable = false;
+    private int     latestApiVersion    = -1;
+    private String  downloadLink        = null;
     private List<JavaRuntimeManager.JavaRuntimeOption> javaRuntimeOptions = new ArrayList<>();
 
     // ── Construtor ─────────────────────────────────────────────────────────
@@ -268,6 +271,9 @@ public class MacrosoftModpackBrowser extends JPanel {
             String  site     = websiteLink;
             String  disc     = discordLink;
             boolean apiError = false;
+            boolean newVersion = false;
+            int     latestVersion = -1;
+            String  dlLink = null;
             List<JavaRuntimeManager.JavaRuntimeOption> javaOptions = new ArrayList<>();
 
             @Override
@@ -283,8 +289,9 @@ public class MacrosoftModpackBrowser extends JPanel {
                 }
 
                 JSONObject api = null;
+                String successUrl = null;
                 for (String url : urlsToTry) {
-                    try { api = Connector.get(url); break; }
+                    try { api = Connector.get(url); successUrl = url; break; }
                     catch (Exception e) { System.err.println("[Browser] API falhou (" + url + "): " + e.getMessage()); }
                 }
 
@@ -296,10 +303,10 @@ public class MacrosoftModpackBrowser extends JPanel {
                     javaOptions = JavaRuntimeManager.listOptionsFromApi(api);
                     try {
                         int v = api.getInt("version");
-                        if (v > LauncherConstants.MACROSOFT_VERSION) {
-                            final int fv = v;
-                            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(parentFrame,
-                                "Atualize para a versão " + fv + "!", "Launcher Desatualizado", JOptionPane.WARNING_MESSAGE));
+                        if (v > LauncherConstants.MACROSOFT_VERSION && isOfficialDomain(successUrl)) {
+                            newVersion   = true;
+                            latestVersion = v;
+                            dlLink = api.optString("download", site);
                         }
                     } catch (JSONException ignored) {}
                     try {
@@ -345,6 +352,9 @@ public class MacrosoftModpackBrowser extends JPanel {
                 websiteLink         = site;
                 discordLink         = disc;
                 lastLoadHadApiError = apiError;
+                newVersionAvailable = newVersion;
+                latestApiVersion    = latestVersion;
+                downloadLink        = dlLink;
                 javaRuntimeOptions  = javaOptions;
                 try { entries = get(); } catch (Exception e) { entries = new ArrayList<>(); lastLoadHadApiError = true; }
                 refreshCards();
@@ -360,6 +370,12 @@ public class MacrosoftModpackBrowser extends JPanel {
         // Banner sutil de erro de rede (só aparece quando a API falhou)
         if (lastLoadHadApiError) {
             cardsPanel.add(buildNetworkErrorBanner());
+            cardsPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        }
+
+        // Banner de atualização disponível
+        if (newVersionAvailable && latestApiVersion > 0) {
+            cardsPanel.add(buildUpdateBanner(latestApiVersion, downloadLink));
             cardsPanel.add(Box.createRigidArea(new Dimension(0, 6)));
         }
 
@@ -384,6 +400,39 @@ public class MacrosoftModpackBrowser extends JPanel {
         }
         cardsPanel.revalidate();
         cardsPanel.repaint();
+    }
+
+    /** Banner de nova versão disponível, exibido no topo da lista. */
+    private JPanel buildUpdateBanner(int version, String link) {
+        JPanel banner = new JPanel(new BorderLayout(8, 0)) {
+            @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); }
+        };
+        banner.setAlignmentX(Component.LEFT_ALIGNMENT);
+        Color bannerBg  = new Color(50, 80, 30);
+        Color bannerBdr = new Color(90, 160, 40);
+        banner.setBackground(bannerBg);
+        banner.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(bannerBdr, 2),
+            BorderFactory.createEmptyBorder(7, 12, 7, 12)));
+
+        JLabel msg = new JLabel("<html><b>\u26A0 Nova vers\u00e3o dispon\u00edvel!</b>  Atualize para a vers\u00e3o " + version + ".</html>");
+        msg.setForeground(new Color(200, 255, 130));
+        msg.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        banner.add(msg, BorderLayout.CENTER);
+
+        if (link != null && !link.isEmpty()) {
+            JButton dlBtn = new JButton("\u2b07 Baixar v" + version);
+            dlBtn.setFont(new Font("SansSerif", Font.BOLD, 11));
+            dlBtn.setForeground(TEXT_WHITE);
+            dlBtn.setBackground(bannerBdr);
+            dlBtn.setOpaque(true);
+            dlBtn.setFocusPainted(false);
+            dlBtn.setBorderPainted(false);
+            dlBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            dlBtn.addActionListener(e -> openLink(link));
+            banner.add(dlBtn, BorderLayout.EAST);
+        }
+        return banner;
     }
 
     /** Banner discreto exibido no topo da lista quando a API não responde. */
@@ -816,6 +865,21 @@ public class MacrosoftModpackBrowser extends JPanel {
     }
 
     // ── Utilitários ────────────────────────────────────────────────────────
+    /**
+     * Retorna true se a URL pertencer a um dos domínios oficiais Macrosoft
+     * (ou subdomínios deles). O aviso de atualização só é exibido nesses casos.
+     */
+    private static boolean isOfficialDomain(String url) {
+        if (url == null || url.isEmpty()) return false;
+        try {
+            String host = new java.net.URL(url).getHost().toLowerCase();
+            for (String domain : LauncherConstants.MACROSOFT_OFFICIAL_DOMAINS) {
+                if (host.equals(domain) || host.endsWith("." + domain)) return true;
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
     private JButton styledButton(String text, Color bg) {
         JButton btn = new JButton(text);
         btn.setBackground(bg);

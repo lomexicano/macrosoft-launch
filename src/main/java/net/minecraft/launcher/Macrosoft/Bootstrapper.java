@@ -195,10 +195,6 @@ public class Bootstrapper {
         // Aviso de launcher desatualizado (somente se a API foi carregada com sucesso)
         if (apiInfoLoadedSuccessfully && apiLauncherVersion > LauncherConstants.MACROSOFT_VERSION) {
             newVersionAvailable = true;
-            JOptionPane.showMessageDialog(frame,
-                    "Seu launcher está desatualizado. Por favor, atualize para a versão " + apiLauncherVersion + ".\n" +
-                    "Acesse nosso site ou canal do Discord para obter a versão mais recente.",
-                    "Launcher Desatualizado", JOptionPane.WARNING_MESSAGE);
         }
 
         // ----- Construção da UI -----
@@ -215,6 +211,39 @@ public class Bootstrapper {
             headerPanel.add(new JLabel("Minecraft Logo"));
         }
         contentPanel.add(headerPanel, BorderLayout.NORTH);
+
+        // Aviso de versão desatualizada inserido no TOPO da lista de modpacks
+        if (newVersionAvailable) {
+            JPanel updateBanner = new JPanel(new BorderLayout(5, 0));
+            updateBanner.setBackground(new Color(180, 90, 0));
+            updateBanner.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(220, 130, 0), 2),
+                    BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+            updateBanner.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
+            updateBanner.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+            JLabel updateLabel = new JLabel(
+                    "<html><b>\u26A0 Launcher desatualizado!</b><br>Vers\u00e3o " + apiLauncherVersion + " dispon\u00edvel.</html>");
+            updateLabel.setForeground(Color.WHITE);
+            updateLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+            updateBanner.add(updateLabel, BorderLayout.CENTER);
+
+            final String linkParaBaixarBanner = (downloadLinkForUpdate != null && !downloadLinkForUpdate.isEmpty()) ? downloadLinkForUpdate : websiteLink;
+            JButton updateBannerBtn = new JButton("Baixar");
+            updateBannerBtn.setFont(new Font("SansSerif", Font.BOLD, 11));
+            updateBannerBtn.setBackground(COLOR_DOWNLOAD_BUTTON_BG);
+            updateBannerBtn.setForeground(COLOR_DOWNLOAD_BUTTON_FG);
+            updateBannerBtn.setOpaque(true);
+            updateBannerBtn.setBorderPainted(false);
+            updateBannerBtn.setFocusPainted(false);
+            updateBannerBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            updateBannerBtn.addActionListener(e -> openLink(linkParaBaixarBanner));
+            updateBanner.add(updateBannerBtn, BorderLayout.EAST);
+
+            // Insere na posição 0 para garantir que fique no topo, acima dos modpacks da API
+            modpackButtonContainer.add(updateBanner, 0);
+            modpackButtonContainer.add(Box.createRigidArea(new Dimension(0, 8)), 1);
+        }
 
         JButton defaultButton = createStyledModpackButton("Other");
         loadFallbackIcon(defaultButton, "/mc.png");

@@ -16,7 +16,13 @@ import org.apache.commons.io.IOUtils;
 public class LauncherConstants {
     public static final int VERSION_FORMAT = 21;
     public static final String VERSION_STRING = "8";
-    public static final int MACROSOFT_VERSION = 8;
+    public static final int MACROSOFT_VERSION = 7;
+    /** Domínios oficiais Macrosoft. O aviso de atualização só é exibido quando a API responde de um destes (ou subdomínios). */
+    public static final String[] MACROSOFT_OFFICIAL_DOMAINS = {
+        "macrosoft.website",
+        "macrosoft.dev",
+        "bezouro.com.br"
+    };
     public static final int PROFILES_FORMAT = 1;
     public static final URI URL_REGISTER = LauncherConstants.constantURI("https://account.mojang.com/register");
     public static final String URL_JAR_FALLBACK = "https://s3.amazonaws.com/Minecraft.Download/";
