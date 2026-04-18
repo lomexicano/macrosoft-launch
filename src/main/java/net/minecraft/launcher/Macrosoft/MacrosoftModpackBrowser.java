@@ -521,7 +521,7 @@ public class MacrosoftModpackBrowser extends JPanel {
 
             // ── Botão 👤 Nick ──────────────────────────────────────────────────────
             JButton nickBtn = styledButton("", BTN_CFG);
-            nickBtn.setIcon(createUserIcon(14));
+            nickBtn.setIcon(loadResourceIcon("/steve-head.png", 16));
             nickBtn.setToolTipText("Definir nome de usuário para esta modpack");
             nickBtn.addActionListener(e -> {
                 String cur     = loadNickForEntry(entry);
@@ -536,7 +536,8 @@ public class MacrosoftModpackBrowser extends JPanel {
             });
 
             // ── Botão ⚙ Configurar ────────────────────────────────────────────────
-            JButton configBtn = styledButton("⚙", BTN_CFG);
+            JButton configBtn = styledButton("", BTN_CFG);
+            configBtn.setIcon(loadResourceIcon("/recipe-book.png", 16));
             configBtn.setToolTipText("Configurar perfil");
             configBtn.addActionListener(e -> configureModpack(entry));
 
@@ -880,17 +881,76 @@ public class MacrosoftModpackBrowser extends JPanel {
         return false;
     }
 
+    private static final int STYLED_BTN_HEIGHT = 28;
+    private static final Cursor HAND_CURSOR    = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR);
+    private static final Cursor DEFAULT_CURSOR = Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR);
+
     private JButton styledButton(String text, Color bg) {
-        JButton btn = new JButton(text);
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(java.awt.Graphics g) {
+                Color base = getBackground();
+                java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                        java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                if (!isEnabled()) {
+                    g2.setColor(new Color(base.getRed(), base.getGreen(), base.getBlue(), 100));
+                } else if (getModel().isPressed()) {
+                    g2.setColor(base.darker());
+                } else if (getModel().isRollover()) {
+                    g2.setColor(base.brighter());
+                } else {
+                    g2.setColor(base);
+                }
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                g2.dispose();
+
+                // Aplica opacidade no conteúdo (texto + ícone) via composite quando desabilitado
+                if (!isEnabled()) {
+                    java.awt.Graphics2D g3 = (java.awt.Graphics2D) g.create();
+                    g3.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.45f));
+                    setEnabled(true);
+                    super.paintComponent(g3);
+                    setEnabled(false);
+                    g3.dispose();
+                } else {
+                    super.paintComponent(g);
+                }
+            }
+
+            @Override
+            public void setEnabled(boolean enabled) {
+                super.setEnabled(enabled);
+                // Corrige cursor: mão quando ativo, ponteiro padrão quando desabilitado
+                setCursor(enabled ? HAND_CURSOR : DEFAULT_CURSOR);
+            }
+
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension d = super.getPreferredSize();
+                return new Dimension(d.width, STYLED_BTN_HEIGHT);
+            }
+
+            @Override
+            public Dimension getMinimumSize() {
+                Dimension d = super.getMinimumSize();
+                return new Dimension(d.width, STYLED_BTN_HEIGHT);
+            }
+
+            @Override
+            public Dimension getMaximumSize() {
+                Dimension d = super.getMaximumSize();
+                return new Dimension(d.width, STYLED_BTN_HEIGHT);
+            }
+        };
         btn.setBackground(bg);
         btn.setForeground(TEXT_WHITE);
         btn.setFont(new Font("SansSerif", Font.BOLD, 12));
         btn.setFocusPainted(false);
-        btn.setOpaque(true);
-        btn.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(bg.darker()),
-            BorderFactory.createEmptyBorder(6, 12, 6, 12)));
-        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(false);
+        btn.setContentAreaFilled(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
+        btn.setCursor(HAND_CURSOR);
         return btn;
     }
 
@@ -907,6 +967,27 @@ public class MacrosoftModpackBrowser extends JPanel {
      * Usa desenho vetorial para garantir renderização correta em qualquer SO/JVM,
      * evitando a dependência de emojis que não renderizam no Java Swing do Linux.
      */
+
+    /** Carrega um ícone PNG do classpath e redimensiona para {@code size}×{@code size} px.
+     *  Retorna {@code null} se o resource não for encontrado. */
+    private static ImageIcon loadResourceIcon(String path, int size) {
+        try {
+            java.io.InputStream is = MacrosoftModpackBrowser.class.getResourceAsStream(path);
+            if (is == null) return null;
+            BufferedImage src = ImageIO.read(is);
+            if (src == null) return null;
+            java.awt.image.BufferedImage scaled = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            java.awt.Graphics2D g2 = scaled.createGraphics();
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2.drawImage(src, 0, 0, size, size, null);
+            g2.dispose();
+            return new ImageIcon(scaled);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static ImageIcon createUserIcon(int size) {
         BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = img.createGraphics();
