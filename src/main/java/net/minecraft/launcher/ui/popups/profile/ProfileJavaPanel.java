@@ -212,12 +212,27 @@ extends JPanel {
     }
     
     private void detectAndSetJavaPath() {
-        List<String> javaPaths = JavaLocator.findJava8Installations();
+        // Resolver o macrosoftBaseDir real (diretório ".macrosoft" ao lado do launcher)
+        // a partir do working directory do launcher (".macrosoft/<context>"), cujo parent é ".macrosoft".
+        Path macrosoftBaseDir = null;
+        try {
+            java.io.File workDir = editor.getMinecraftLauncher().getLauncher().getWorkingDirectory();
+            if (workDir != null) {
+                Path parent = workDir.toPath().getParent();
+                if (parent != null) {
+                    macrosoftBaseDir = parent;
+                }
+            }
+        } catch (Exception ignored) {
+            // Fallback: JavaLocator usará heurísticas de user.dir
+        }
+
+        List<String> javaPaths = JavaLocator.findJava8Installations(macrosoftBaseDir);
 
         if (javaPaths.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                "Nenhuma instalação do Java 8 foi encontrada automaticamente.\n" +
-                "Por favor, defina o caminho manualmente ou instale o Java 8.",
+                "Nenhuma instalação do Java foi encontrada automaticamente.\n" +
+                "Por favor, defina o caminho manualmente ou instale um Java pelo gerenciador.",
                 "Detecção de Java", JOptionPane.INFORMATION_MESSAGE);
         } else if (javaPaths.size() == 1) {
             String foundPath = shortenJavaPath(javaPaths.get(0));
@@ -225,7 +240,7 @@ extends JPanel {
             this.javaPathCustom.setSelected(true);
             updateJavaPathState();
             JOptionPane.showMessageDialog(this,
-                "Java 8 encontrado e configurado:\n" + foundPath,
+                "Java encontrado e configurado:\n" + foundPath,
                 "Detecção de Java", JOptionPane.INFORMATION_MESSAGE);
         } else {
             List<String> shortened = new java.util.ArrayList<>();
@@ -236,7 +251,7 @@ extends JPanel {
             int option = JOptionPane.showOptionDialog(
                 this,
                 scrollPane,
-                "Várias instalações do Java 8 encontradas",
+                "Várias instalações do Java encontradas",
                 JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE,
                 null, null, null

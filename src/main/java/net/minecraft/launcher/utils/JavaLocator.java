@@ -24,7 +24,24 @@ public class JavaLocator {
     private static final Pattern JAVA_8_VERSION_PATTERN = Pattern.compile("(?:java|openjdk) version \"1\\.8\\.0_([^\"]+)\"|build 1\\.8\\.0_([^\"]+)");
 
 
+    /**
+     * Procura instalações do Java 8 no sistema. Usa heurísticas baseadas em user.dir para
+     * tentar localizar o diretório gerenciado pelo Macrosoft. Prefira
+     * {@link #findJava8Installations(Path)} quando o caminho real for conhecido.
+     */
     public static List<String> findJava8Installations() {
+        return findJava8Installations(null);
+    }
+
+    /**
+     * Procura instalações do Java 8 no sistema.
+     *
+     * @param macrosoftBaseDir  o diretório ".macrosoft" real do launcher (ex: /opt/mclaunch/.macrosoft),
+     *                          ou {@code null} para usar a heurística de user.dir. Quando fornecido,
+     *                          os Javas instalados em {@code macrosoftBaseDir/.java/} são incluídos
+     *                          independentemente de versão (pois foram explicitamente gerenciados pelo usuário).
+     */
+    public static List<String> findJava8Installations(Path macrosoftBaseDir) {
         Set<String> javaHomes = new TreeSet<>(); // Usar TreeSet para ordenação e evitar duplicatas
 
         // 1. Variáveis de Ambiente
@@ -45,25 +62,40 @@ public class JavaLocator {
                 findJavaOnLinux(javaHomes);
                 break;
             default:
-                // Tentar uma busca genérica no PATH do sistema para outros OS
-                //findJavaInSystemPath(javaHomes, os);
                 break;
         }
 
         // 3. Verificar o Java atualmente em uso pelo launcher
         addPathIfValidJavaHome(System.getProperty("java.home"), javaHomes);
-        discoverMacrosoftManagedJavas(javaHomes);
+
+        // 4. Javas gerenciados pelo Macrosoft (qualquer versão — foram instalados explicitamente pelo usuário)
+        //    Coletados separadamente para não passarem pelo filtro isJava8.
+        Set<String> macrosoftManagedHomes = new LinkedHashSet<>();
+        if (macrosoftBaseDir != null) {
+            // Caminho explícito e confiável: usar diretamente
+            discoverMacrosoftManagedJavasFromDir(macrosoftBaseDir.resolve(".java"), macrosoftManagedHomes);
+        } else {
+            // Fallback: heurísticas baseadas em user.dir (menos confiável)
+            discoverMacrosoftManagedJavas(macrosoftManagedHomes);
+        }
 
         // Filtrar e retornar apenas os que são Java 8 válidos e contêm o executável
-        List<String> validJava8Executables = new ArrayList<>();
+        List<String> validExecutables = new ArrayList<>();
         for (String homePath : javaHomes) {
             String executablePath = getExecutableFromJavaHome(homePath, os);
             if (executablePath != null && Files.exists(Paths.get(executablePath)) && isJava8(executablePath)) {
-                validJava8Executables.add(executablePath);
+                validExecutables.add(executablePath);
+            }
+        }
+        // Javas do Macrosoft: aceitar qualquer versão, apenas exigir que o executável exista e seja executável
+        for (String homePath : macrosoftManagedHomes) {
+            String executablePath = getExecutableFromJavaHome(homePath, os);
+            if (executablePath != null && Files.exists(Paths.get(executablePath))) {
+                validExecutables.add(executablePath);
             }
         }
         // Remover duplicatas que possam ter surgido de caminhos diferentes para o mesmo executável
-        return validJava8Executables.stream().distinct().collect(Collectors.toList());
+        return validExecutables.stream().distinct().collect(Collectors.toList());
     }
 
     private static String getExecutableFromJavaHome(String javaHome, OperatingSystem os) {
@@ -164,32 +196,45 @@ public class JavaLocator {
 
     private static void discoverMacrosoftManagedJavas(Set<String> javaHomes) {
         for (Path macrosoftJavaDir : resolveMacrosoftJavaDirs()) {
-            if (!Files.isDirectory(macrosoftJavaDir)) {
-                continue;
-            }
-            try (Stream<Path> installDirs = Files.list(macrosoftJavaDir)) {
-                installDirs.filter(Files::isDirectory).forEach(installDir -> {
-                    try (Stream<Path> walk = Files.walk(installDir, 8)) {
-                        walk.filter(Files::isRegularFile)
-                            .filter(path -> {
-                                String name = path.getFileName().toString().toLowerCase();
-                                return name.equals("java") || name.equals("javaw.exe") || name.equals("java.exe");
-                            })
-                            .findFirst()
-                            .ifPresent(javaExe -> {
-                                Path bin = javaExe.getParent();
-                                if (bin != null && "bin".equalsIgnoreCase(bin.getFileName().toString())) {
-                                    Path home = bin.getParent();
-                                    if (home != null) {
-                                        addPathIfValidJavaHome(home.toString(), javaHomes);
-                                    }
+            discoverMacrosoftManagedJavasFromDir(macrosoftJavaDir, javaHomes);
+        }
+    }
+
+    /**
+     * Varre {@code macrosoftJavaDir} (o diretório ".macrosoft/.java" real) e adiciona
+     * os java-homes encontrados ao conjunto {@code javaHomes}.
+     */
+    private static void discoverMacrosoftManagedJavasFromDir(Path macrosoftJavaDir, Set<String> javaHomes) {
+        if (!Files.isDirectory(macrosoftJavaDir)) {
+            return;
+        }
+        try (Stream<Path> installDirs = Files.list(macrosoftJavaDir)) {
+            installDirs.filter(Files::isDirectory).forEach(installDir -> {
+                // Ignorar diretórios temporários criados pelo JavaRuntimeManager
+                String dirName = installDir.getFileName().toString();
+                if (dirName.startsWith(".")) {
+                    return;
+                }
+                try (Stream<Path> walk = Files.walk(installDir, 8)) {
+                    walk.filter(Files::isRegularFile)
+                        .filter(path -> {
+                            String name = path.getFileName().toString().toLowerCase();
+                            return name.equals("java") || name.equals("javaw.exe") || name.equals("java.exe");
+                        })
+                        .findFirst()
+                        .ifPresent(javaExe -> {
+                            Path bin = javaExe.getParent();
+                            if (bin != null && "bin".equalsIgnoreCase(bin.getFileName().toString())) {
+                                Path home = bin.getParent();
+                                if (home != null) {
+                                    addPathIfValidJavaHome(home.toString(), javaHomes);
                                 }
-                            });
-                    } catch (IOException ignored) {
-                    }
-                });
-            } catch (IOException ignored) {
-            }
+                            }
+                        });
+                } catch (IOException ignored) {
+                }
+            });
+        } catch (IOException ignored) {
         }
     }
 
