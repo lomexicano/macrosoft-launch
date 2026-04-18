@@ -16,7 +16,7 @@ import org.apache.commons.io.IOUtils;
 public class LauncherConstants {
     public static final int VERSION_FORMAT = 21;
     public static final String VERSION_STRING = "8";
-    public static final int MACROSOFT_VERSION = 7;
+    public static final int MACROSOFT_VERSION = 9;
     /** Domínios oficiais Macrosoft. O aviso de atualização só é exibido quando a API responde de um destes (ou subdomínios). */
     public static final String[] MACROSOFT_OFFICIAL_DOMAINS = {
         "macrosoft.website",
