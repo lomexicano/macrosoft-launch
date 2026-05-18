@@ -24,30 +24,40 @@ extends Thread {
     public DirectProcessInputMonitor(DirectGameProcess process, GameOutputLogProcessor logProcessor) {
         this.process = process;
         this.logProcessor = logProcessor;
+        // Thread de baixa prioridade: não deve competir com o processo do jogo pelo scheduler do SO.
+        this.setDaemon(true);
+        this.setPriority(Thread.MIN_PRIORITY);
     }
 
-    /*
-     * WARNING - Removed try catching itself - possible behaviour change.
-     */
     @Override
     public void run() {
+        // Lê o stdout do processo de forma bloqueante (readLine() bloqueia até uma linha
+        // estar disponível ou o stream fechar — não é necessário polling de isRunning()).
+        // Buffer grande (64 KB) para reduzir syscalls quando o jogo é verbose.
         InputStreamReader reader = new InputStreamReader(this.process.getRawProcess().getInputStream());
-        BufferedReader buf = new BufferedReader(reader);
-        String line = null;
-        while (this.process.isRunning()) {
-            try {
-                while ((line = buf.readLine()) != null) {
-                    this.logProcessor.onGameOutput(this.process, line);
-                    if (this.process.getSysOutFilter().apply(line) != Boolean.TRUE.booleanValue()) continue;
+        BufferedReader buf = new BufferedReader(reader, 65536);
+        try {
+            String line;
+            while ((line = buf.readLine()) != null) {
+                this.logProcessor.onGameOutput(this.process, line);
+                if (this.process.getSysOutFilter().apply(line)) {
                     this.process.getSysOutLines().add(line);
                 }
             }
-            catch (IOException ex) {
-                LOGGER.error(ex);
-            }
-            finally {
-                IOUtils.closeQuietly(reader);
-            }
+        } catch (IOException ex) {
+            LOGGER.error("Erro ao ler saída do processo do jogo", ex);
+        } finally {
+            IOUtils.closeQuietly(buf);
+            IOUtils.closeQuietly(reader);
+        }
+        // Aguarda o processo encerrar de verdade antes de notificar.
+        // O stdout pode fechar (EOF) um instante antes do processo sair,
+        // o que faria getExitCode() lançar IllegalThreadStateException se chamado cedo demais.
+        try {
+            this.process.getRawProcess().waitFor();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            LOGGER.warn("Monitor interrompido aguardando término do processo", ex);
         }
         GameProcessRunnable onExit = this.process.getExitRunnable();
         if (onExit != null) {

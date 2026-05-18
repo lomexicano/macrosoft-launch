@@ -118,7 +118,9 @@ implements GameRunnerListener {
         this.launcher.getLauncher().getVersionManager().getExecutorService().execute(new Runnable() {
             @Override
             public void run() {
-                gameRunner.setVisibility(Objects.firstNonNull(profile.getLauncherVisibilityOnGameClose(), Profile.DEFAULT_LAUNCHER_VISIBILITY));
+                // Forçar HIDE_LAUNCHER: o launcher sempre some ao iniciar o jogo
+                // e reaparece automaticamente quando o jogo fecha.
+                gameRunner.setVisibility(LauncherVisibilityRule.HIDE_LAUNCHER);
                 VersionSyncInfo syncInfo = null;
                 if (lastVersionId != null) {
                     syncInfo = GameLaunchDispatcher.this.launcher.getLauncher().getVersionManager().getVersionSyncInfo(

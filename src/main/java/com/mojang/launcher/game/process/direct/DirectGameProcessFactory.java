@@ -28,7 +28,15 @@ implements GameProcessFactory {
         
     	 */
         List<String> full = builder.getFullCommands();
-        return new DirectGameProcess(full, new ProcessBuilder(full).directory(builder.getDirectory()).redirectErrorStream(true).start(), builder.getSysOutFilter(), builder.getLogProcessor());
+        // Redirecionar stdout e stderr do jogo para DISCARD (equivalente a /dev/null).
+        // Os writes do Minecraft completam instantaneamente sem pipe, sem thread de leitura,
+        // sem nenhum overhead no launcher durante o gameplay.
+        Process process = new ProcessBuilder(full)
+                .directory(builder.getDirectory())
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        return new DirectGameProcess(full, process, builder.getSysOutFilter(), builder.getLogProcessor());
     }
 }
 

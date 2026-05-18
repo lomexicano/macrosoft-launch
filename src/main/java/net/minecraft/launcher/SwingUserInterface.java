@@ -1,7 +1,5 @@
 package net.minecraft.launcher;
 
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.SettableFuture;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.UserAuthentication;
 import com.mojang.launcher.OperatingSystem;
@@ -252,12 +250,20 @@ implements MinecraftUserInterface {
 
     @Override
     public void setVisible(final boolean visible) {
-        if (suppressUI) return;
+        // Em modo headless (suppressUI) o frame é o parentFrame do browser:
+        // ainda devemos escondê-lo quando o jogo inicia e mostrá-lo quando encerra.
         SwingUtilities.invokeLater(new Runnable(){
-
             @Override
             public void run() {
-                SwingUserInterface.this.frame.setVisible(visible);
+                if (visible) {
+                    SwingUserInterface.this.frame.setVisible(true);
+                    SwingUserInterface.this.frame.toFront();
+                    SwingUserInterface.this.frame.requestFocus();
+                } else {
+                    SwingUserInterface.this.frame.setVisible(false);
+                    // Sugere ao GC que libere memória enquanto o jogo está rodando.
+                    System.gc();
+                }
             }
         });
     }
@@ -338,18 +344,29 @@ implements MinecraftUserInterface {
 
     @Override
     public GameOutputLogProcessor showGameOutputTab(final MinecraftGameRunner gameRunner) {
-        final SettableFuture future = SettableFuture.create();
-        SwingUtilities.invokeLater(new Runnable(){
-
+        // Usar invokeAndWait para criar a aba na EDT sem bloquear indefinidamente.
+        // Se já estivermos na EDT, criamos diretamente para evitar deadlock.
+        final GameOutputTab[] tabHolder = new GameOutputTab[1];
+        Runnable task = new Runnable() {
             @Override
             public void run() {
                 GameOutputTab tab = new GameOutputTab(SwingUserInterface.this.minecraftLauncher);
-                future.set(tab);
+                tabHolder[0] = tab;
                 SwingUserInterface.this.launcherPanel.getTabPanel().removeTab("Jogo");
                 SwingUserInterface.this.launcherPanel.getTabPanel().addTab("Jogo", tab);
             }
-        });
-        return (GameOutputLogProcessor)Futures.getUnchecked(future);
+        };
+        if (SwingUtilities.isEventDispatchThread()) {
+            task.run();
+        } else {
+            try {
+                SwingUtilities.invokeAndWait(task);
+            } catch (Exception e) {
+                LOGGER.error("Erro ao criar aba de output do jogo", e);
+                tabHolder[0] = new GameOutputTab(this.minecraftLauncher);
+            }
+        }
+        return tabHolder[0];
     }
 
     /** Expõe o painel de abas do launcher (logs, jogo, crash) para uso externo. */

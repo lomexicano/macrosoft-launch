@@ -87,6 +87,8 @@ implements GameProcessRunnable {
     private LauncherVisibilityRule visibilityRule = LauncherVisibilityRule.CLOSE_LAUNCHER;
     private UserAuthentication auth;
     private Profile selectedProfile;
+    /** Timestamp (ms) do momento em que o processo do jogo foi iniciado — usado para localizar crash reports. */
+    private long gameStartTime = 0;
 
     public MinecraftGameRunner(Launcher minecraftLauncher, String[] additionalLaunchArgs) {
         this.minecraftLauncher = minecraftLauncher;
@@ -196,7 +198,8 @@ implements GameProcessRunnable {
             }
         });
         processBuilder.directory(gameDirectory);
-        processBuilder.withLogProcessor(this.minecraftLauncher.getUserInterface().showGameOutputTab(this));
+        // showGameOutputTab removido: stdout está redirecionado para DISCARD,
+        // não há output a capturar. O logProcessor padrão (no-op) é usado.
         String profileArgs = this.selectedProfile.getJavaArgs();
         if (profileArgs != null) {
             processBuilder.withArguments(profileArgs.split(" "));
@@ -217,6 +220,7 @@ implements GameProcessRunnable {
         processBuilder.withArguments(this.additionalLaunchArgs);
         try {
             LOGGER.debug("Running " + StringUtils.join(processBuilder.getFullCommands(), " "));
+            this.gameStartTime = System.currentTimeMillis();
             this.currentProcess = this.processFactory.startGame(processBuilder);
             this.currentProcess.setExitRunnable(this);
             this.setStatus(GameInstanceStatus.PLAYING);
@@ -229,7 +233,7 @@ implements GameProcessRunnable {
             this.setStatus(GameInstanceStatus.IDLE);
             return;
         }
-        this.minecraftLauncher.performCleanups();
+        this.minecraftLauncher.performCleanupsAsync();
     }
 
     protected CompleteMinecraftVersion getVersion() {
@@ -468,47 +472,55 @@ implements GameProcessRunnable {
             MinecraftGameRunner.LOGGER.error("Game ended with bad state (exit code " + exitCode + ")");
             MinecraftGameRunner.LOGGER.info("Ignoring visibility rule and showing launcher due to a game crash");
             this.minecraftLauncher.getUserInterface().setVisible(true);
-            String errorText = null;
-            final Collection<String> sysOutLines = process.getSysOutLines();
-            final String[] sysOut = sysOutLines.toArray(new String[ sysOutLines.size() ]);
-            for (int i = sysOut.length - 1; i >= 0; --i) {
-                final String line = sysOut[ i ];
-                final int pos = line.lastIndexOf("#@!@#");
-                if (pos >= 0 && pos < line.length() - "#@!@#".length() - 1) {
-                    errorText = line.substring(pos + "#@!@#".length()).trim();
-                    break;
-                }
-            }
-            if (errorText != null) {
-                final File file = new File(errorText);
-                if (file.isFile()) {
-                    MinecraftGameRunner.LOGGER.info("Crash report detected, opening: " + errorText);
-                    InputStream inputStream = null;
-                    try {
-                        inputStream = new FileInputStream(file);
-                        final BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                        final StringBuilder result = new StringBuilder();
-                        String line2;
-                        while ((line2 = reader.readLine()) != null) {
-                            if (result.length() > 0) {
-                                result.append("\n");
-                            }
-                            result.append(line2);
-                        }
-                        reader.close();
-                        this.minecraftLauncher.getUserInterface().showCrashReport(this.getVersion(), file,
-                                result.toString());
-                    } catch (IOException e) {
-                        MinecraftGameRunner.LOGGER.error("Couldn't open crash report", e);
-                    } finally {
-                        Downloadable.closeSilently(inputStream);
+            // Como o stdout do jogo é descartado (DISCARD), detectamos o crash report
+            // pelo filesystem: procuramos o arquivo mais recente em crash-reports/ criado
+            // após o início do jogo.
+            File crashFile = this.findNewestCrashReport();
+            if (crashFile != null) {
+                MinecraftGameRunner.LOGGER.info("Crash report detected, opening: " + crashFile.getAbsolutePath());
+                InputStream inputStream = null;
+                try {
+                    inputStream = new FileInputStream(crashFile);
+                    final BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                    final StringBuilder result = new StringBuilder();
+                    String line2;
+                    while ((line2 = reader.readLine()) != null) {
+                        if (result.length() > 0) result.append("\n");
+                        result.append(line2);
                     }
-                } else {
-                    MinecraftGameRunner.LOGGER.error("Crash report detected, but unknown format: " + errorText);
+                    reader.close();
+                    this.minecraftLauncher.getUserInterface().showCrashReport(this.getVersion(), crashFile, result.toString());
+                } catch (IOException e) {
+                    MinecraftGameRunner.LOGGER.error("Couldn't open crash report", e);
+                } finally {
+                    Downloadable.closeSilently(inputStream);
                 }
             }
         }
         this.setStatus(GameInstanceStatus.IDLE);
+    }
+
+    /**
+     * Procura o crash report mais recente gerado após o início do jogo.
+     * Minecraft escreve crashes em &lt;gameDir&gt;/crash-reports/ com extensão .txt.
+     */
+    private File findNewestCrashReport() {
+        File gameDir = (this.selectedProfile != null && this.selectedProfile.getGameDir() != null)
+                ? this.selectedProfile.getGameDir()
+                : this.getLauncher().getWorkingDirectory();
+        File crashDir = new File(gameDir, "crash-reports");
+        if (!crashDir.isDirectory()) return null;
+        File[] reports = crashDir.listFiles();
+        if (reports == null) return null;
+        File newest = null;
+        for (File f : reports) {
+            if (!f.isFile() || !f.getName().endsWith(".txt")) continue;
+            if (f.lastModified() < this.gameStartTime) continue; // anterior ao início do jogo
+            if (newest == null || f.lastModified() > newest.lastModified()) {
+                newest = f;
+            }
+        }
+        return newest;
     }
 
     public void setVisibility(LauncherVisibilityRule visibility) {

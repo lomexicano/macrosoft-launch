@@ -563,6 +563,34 @@ public class Launcher {
         this.cleanupOldVirtuals();
     }
 
+    /**
+     * Executa limpezas em background com atraso de 60 s após o jogo iniciar.
+     * Evita I/O contention com o Minecraft durante a inicialização.
+     * A thread é daemon (não impede o JVM de sair) e roda em prioridade mínima.
+     */
+    public void performCleanupsAsync() {
+        Thread cleanupThread = new Thread("launcher-cleanup") {
+            @Override
+            public void run() {
+                try {
+                    // Aguarda o Minecraft terminar de carregar antes de fazer I/O pesado.
+                    Thread.sleep(60_000L);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                try {
+                    Launcher.this.performCleanups();
+                } catch (Throwable e) {
+                    LOGGER.warn("Erro durante limpeza em background", e);
+                }
+            }
+        };
+        cleanupThread.setDaemon(true);
+        cleanupThread.setPriority(Thread.MIN_PRIORITY);
+        cleanupThread.start();
+    }
+
     public ProfileManager getProfileManager() {
         return this.profileManager;
     }
