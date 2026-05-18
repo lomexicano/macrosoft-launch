@@ -198,8 +198,11 @@ implements GameProcessRunnable {
             }
         });
         processBuilder.directory(gameDirectory);
-        // showGameOutputTab removido: stdout está redirecionado para DISCARD,
-        // não há output a capturar. O logProcessor padrão (no-op) é usado.
+        // Cria a aba "Jogo" e registra o logProcessor para receber as linhas do stdout
+        final GameOutputLogProcessor logProcessor = ((net.minecraft.launcher.MinecraftUserInterface) this.getLauncher().getUserInterface()).showGameOutputTab(this);
+        if (logProcessor != null) {
+            processBuilder.withLogProcessor(logProcessor);
+        }
         String profileArgs = this.selectedProfile.getJavaArgs();
         if (profileArgs != null) {
             processBuilder.withArguments(profileArgs.split(" "));

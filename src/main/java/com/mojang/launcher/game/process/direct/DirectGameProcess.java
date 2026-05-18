@@ -6,6 +6,9 @@ import com.google.common.collect.EvictingQueue;
 import com.mojang.launcher.events.GameOutputLogProcessor;
 import com.mojang.launcher.game.process.AbstractGameProcess;
 import com.mojang.launcher.game.process.GameProcessRunnable;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -17,25 +20,36 @@ extends AbstractGameProcess {
     public DirectGameProcess(List<String> commands, Process process, Predicate<String> sysOutFilter, GameOutputLogProcessor logProcessor) {
         super(commands, sysOutFilter);
         this.process = process;
-        // Thread minimalista: bloqueia em waitFor() e notifica quando o jogo encerra.
-        // Nenhuma leitura de pipe — zero overhead no launcher durante o gameplay.
-        Thread waiter = new Thread("mc-process-watcher") {
+
+        // Thread de leitura: drena o stdout (merge com stderr) e envia para o GameOutputTab.
+        // Loop único — quando readLine() retorna null o pipe fechou, saímos limpo.
+        // Prioridade mínima para não competir com o Minecraft.
+        Thread reader = new Thread("mc-stdout-reader") {
             @Override
             public void run() {
-                try {
-                    process.waitFor();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(process.getInputStream(),
+                                Charset.defaultCharset()), 65536)) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        if (logProcessor != null) {
+                            logProcessor.onGameOutput(DirectGameProcess.this, line);
+                        }
+                    }
+                } catch (Exception ignored) {
+                    // pipe fechado ou processo morto — encerra silenciosamente
                 }
+                // Notifica encerramento do jogo após esgotamento do stdout
                 GameProcessRunnable onExit = DirectGameProcess.this.getExitRunnable();
                 if (onExit != null) {
+                    try { process.waitFor(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
                     onExit.onGameProcessEnded(DirectGameProcess.this);
                 }
             }
         };
-        waiter.setDaemon(true);
-        waiter.setPriority(Thread.MIN_PRIORITY);
-        waiter.start();
+        reader.setDaemon(true);
+        reader.setPriority(Thread.MIN_PRIORITY);
+        reader.start();
     }
 
     public Process getRawProcess() {
@@ -44,7 +58,6 @@ extends AbstractGameProcess {
 
     @Override
     public Collection<String> getSysOutLines() {
-        // Saída descartada no nível do SO — sempre vazio.
         return Collections.emptyList();
     }
 

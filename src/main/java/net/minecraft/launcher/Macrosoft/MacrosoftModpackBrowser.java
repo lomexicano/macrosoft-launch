@@ -805,7 +805,10 @@ public class MacrosoftModpackBrowser extends JPanel {
         statePoller.start();
     }
 
+    private boolean wasAnyPlaying = false;
+
     private void updateCardStates() {
+        boolean isAnyPlaying = false;
         for (CardUi cu : cardUiList) {
             ActionState state = getActionState(cu.entry);
             applyButtonState(cu.actionBtn, state);
@@ -815,7 +818,23 @@ public class MacrosoftModpackBrowser extends JPanel {
             // Botão de logs aparece assim que o launcher for criado
             if (cu.logsBtn != null)
                 cu.logsBtn.setVisible(hasLauncher);
+            if (state == ActionState.PLAYING) {
+                isAnyPlaying = true;
+                // Abre logs automaticamente quando o jogo inicia
+                if (!wasAnyPlaying) {
+                    openLogWindow(cu.entry);
+                }
+            }
         }
+        // Oculta/exibe o browser ao iniciar/encerrar o jogo
+        if (isAnyPlaying && !wasAnyPlaying) {
+            parentFrame.setVisible(false);
+        } else if (!isAnyPlaying && wasAnyPlaying) {
+            parentFrame.setVisible(true);
+            parentFrame.toFront();
+            parentFrame.requestFocus();
+        }
+        wasAnyPlaying = isAnyPlaying;
     }
 
     /**
@@ -1171,7 +1190,8 @@ public class MacrosoftModpackBrowser extends JPanel {
             SwingUserInterface ui = (SwingUserInterface) entry.playLauncher.getUserInterface();
             LauncherTabPanel tabPanel = ui.getTabPanel();
 
-            JDialog dialog = new JDialog(parentFrame, "Logs da " + entry.name, false);
+            // Sem dono (null) para que o diálogo não some quando o browser é ocultado
+            JDialog dialog = new JDialog((java.awt.Frame) null, "Logs da " + entry.name, false);
             dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
             dialog.setPreferredSize(new Dimension(720, 460));
             dialog.add(tabPanel, BorderLayout.CENTER);
