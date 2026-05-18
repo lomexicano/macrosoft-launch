@@ -1,10 +1,10 @@
 # Macrosoft Launcher — Changelog de Performance e Estabilidade
 
-> Sessão de refatoração: correção de regressão de performance v8→v9 e implementação de ocultação do launcher durante o gameplay.
+> **v10** — Correção de regressão de performance v8→v9, implementação de ocultação do launcher durante o gameplay e restauração dos logs do Minecraft em tempo real.
 
 ---
 
-## Problemas identificados na v9
+## Problemas identificados na v9 (corrigidos na v10)
 
 A v9 apresentava dois grandes problemas em relação à v8:
 
